@@ -11,7 +11,7 @@ using namespace std;
 
 struct FireParameters {
     FireParameters() {}
-    FireParameters(int phi, float t, float rho, p);
+    FireParameters(int phi, float t, float rho, float p);
     ~FireParameters();
 
     // phi will define whether rho and p are for fuel or hot gaseous products
