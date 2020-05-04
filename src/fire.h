@@ -61,6 +61,7 @@ struct Fire {
     vector<FireParameters *> map;
 
     void build_map();
+    void simulate(double delta_t);
 };
 
 #endif /* FIRE_H */
