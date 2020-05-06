@@ -6,15 +6,15 @@
 
 using namespace std;
 
-#define VOXEL_H 0.1	// arbitrary number, can change this
-#define N 1000		// also arbitrary
+constexpr auto VOXEL_H = 0.1;	// arbitrary number, can change this;
+constexpr auto N = 1000;		// also arbitrary;
 
-FireParameters::FireParameters(double phi, double temp, double rho, double pres) {
-	this->phi = phi;
-	this->temp = temp;
-	this->rho = rho;
-	this->pres = pres;
-}
+//FireParameters::FireParameters(double phi, double temp, double rho, double pres) {
+//	this->phi = phi;
+//	this->temp = temp;
+//	this->rho = rho;
+//	this->pres = pres;
+//}
 
 Vector3D FireParameters::normal() {
 	double phi_x = (i_up->phi - i_down->phi) / (2 * VOXEL_H);
@@ -77,7 +77,7 @@ void Fire::build_map() {
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
-				map.emplace_back(FireParameters(-1, 0, 1.3, 1));	// -1 because no fuel, 0 deg Celcius,
+				map.emplace_back(new FireParameters(-1, 0, 1.3, 1));	// -1 because no fuel, 0 deg Celcius,
 																	// 1.3 kg/m^3 density, 1 atm
 																	// values are kinda made up for now cause units are hard
 			}
@@ -154,6 +154,8 @@ void Fire::build_map() {
 
 void Fire::simulate(double delta_t) {
 	// need to add a way to propogate fuel velocities for this to work
+
+	//for (const auto fp : )
 
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {

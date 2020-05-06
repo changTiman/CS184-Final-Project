@@ -12,8 +12,8 @@ using namespace std;
 
 struct FireParameters {
     FireParameters() {}
-    FireParameters(double phi, double temp, double rho, double pres);
-    ~FireParameters();
+    FireParameters(double phi, double temp, double rho, double pres) : phi(phi), temp(temp), rho(rho), pres(pres) {}
+    ~FireParameters() {}
 
     // phi will define whether rho and p are for fuel or hot gaseous products
     double phi;         // implicit surface definition:  
