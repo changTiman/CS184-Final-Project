@@ -128,14 +128,14 @@ void ClothSimulator::load_shaders() {
     
     // Special filenames are treated a bit differently
     ShaderTypeHint hint;
-    if (shader_name == "Wireframe") {
-      hint = ShaderTypeHint::WIREFRAME;
+    if (shader_name == "Temp") {
+      hint = ShaderTypeHint::TEMP;
       std::cout << "Type: Wireframe" << std::endl;
-    } else if (shader_name == "Normal") {
-      hint = ShaderTypeHint::NORMALS;
+    } else if (shader_name == "Phi") {
+      hint = ShaderTypeHint::PHI;
       std::cout << "Type: Normal" << std::endl;
     } else {
-      hint = ShaderTypeHint::PHONG;
+        hint = ShaderTypeHint::PHONG;
       std::cout << "Type: Custom" << std::endl;
     }
     
@@ -145,9 +145,9 @@ void ClothSimulator::load_shaders() {
     shaders_combobox_names.push_back(shader_name);
   }
   
-  // Assuming that it's there, use "Wireframe" by default
+  // Assuming that it's there, use "Temp" by default
   for (size_t i = 0; i < shaders_combobox_names.size(); ++i) {
-    if (shaders_combobox_names[i] == "Wireframe") {
+    if (shaders_combobox_names[i] == "Temp") {
       active_shader_idx = i;
       break;
     }
@@ -250,8 +250,7 @@ void ClothSimulator::drawContents() {
     vector<Vector3D> external_accelerations = {gravity};
 
     for (int i = 0; i < simulation_steps; i++) {
-      // cloth->simulate(frames_per_sec, simulation_steps, cp, external_accelerations, collision_objects);
-        fire->simulate(0.1, fp);
+		fire->simulate(0.1, fp);
     }
   }
 
@@ -276,9 +275,12 @@ void ClothSimulator::drawContents() {
   shader.setUniform("u_view_projection", viewProjection);
 
   switch (active_shader.type_hint) {
-  case WIREFRAME:
+  case TEMP:
     shader.setUniform("u_color", color, false);
-    drawWireframe(shader);
+    drawTemp(shader);
+    break;
+  case PHI:
+    drawPhi(shader);
     break;
   case NORMALS:
     drawNormals(shader);
@@ -315,57 +317,25 @@ void ClothSimulator::drawContents() {
   }*/
 }
 
-void ClothSimulator::drawWireframe(GLShader &shader) {
-  /*int num_structural_springs =
-      2 * cloth->num_width_points * cloth->num_height_points -
-      cloth->num_width_points - cloth->num_height_points;
-  int num_shear_springs =
-      2 * (cloth->num_width_points - 1) * (cloth->num_height_points - 1);
-  int num_bending_springs = num_structural_springs - cloth->num_width_points -
-                            cloth->num_height_points;
+void ClothSimulator::drawPhi(GLShader &shader) {
+	// Make fire render here for now because default renderer
+	vector<FireVoxel*>& fire_render = fire->map;
+	MatrixXf positions(4, fire_render.size());
+	MatrixXf phis(1, fire_render.size());
 
-  int num_springs = cp->enable_structural_constraints * num_structural_springs +
-                    cp->enable_shearing_constraints * num_shear_springs +
-                    cp->enable_bending_constraints * num_bending_springs;
+	for (int i = 0; i < fire_render.size(); i++) {
+		const auto &fv = *fire_render[i];
+		const auto &p = fv.position;
+		positions.col(i) << p.x, p.y, p.z, 1.0;
+		phis.col(i) << fv.phi;
+	}
 
-  MatrixXf positions(4, num_springs * 2);
-  MatrixXf normals(4, num_springs * 2);
+	shader.uploadAttrib("in_position", positions, false);
+	shader.uploadAttrib("in_phi", phis, false);
+	shader.drawArray(GL_POINTS, 0, fire_render.size());
+}
 
-  // Draw springs as lines
-
-  int si = 0;
-
-  for (int i = 0; i < cloth->springs.size(); i++) {
-    Spring s = cloth->springs[i];
-
-    if ((s.spring_type == STRUCTURAL && !cp->enable_structural_constraints) ||
-        (s.spring_type == SHEARING && !cp->enable_shearing_constraints) ||
-        (s.spring_type == BENDING && !cp->enable_bending_constraints)) {
-      continue;
-    }
-
-    Vector3D pa = s.pm_a->position;
-    Vector3D pb = s.pm_b->position;
-
-    Vector3D na = s.pm_a->normal();
-    Vector3D nb = s.pm_b->normal();
-
-    positions.col(si) << pa.x, pa.y, pa.z, 1.0;
-    positions.col(si + 1) << pb.x, pb.y, pb.z, 1.0;
-
-    normals.col(si) << na.x, na.y, na.z, 0.0;
-    normals.col(si + 1) << nb.x, nb.y, nb.z, 0.0;
-
-    si += 2;
-  }
-
-  //shader.setUniform("u_color", nanogui::Color(1.0f, 1.0f, 1.0f, 1.0f), false);
-  shader.uploadAttrib("in_position", positions, false);
-  // Commented out: the wireframe shader does not have this attribute
-  //shader.uploadAttrib("in_normal", normals);
-
-  shader.drawArray(GL_LINES, 0, num_springs * 2);*/
-
+void ClothSimulator::drawTemp(GLShader &shader) {
   // Make fire render here for now because default renderer
   vector<FireVoxel*> fire_render = fire->fuel;
   //vector<FireVoxel*> fire_render = fire->implicit_surface;

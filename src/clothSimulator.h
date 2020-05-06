@@ -11,7 +11,7 @@
 using namespace nanogui;
 
 struct UserShader;
-enum ShaderTypeHint { WIREFRAME = 0, NORMALS = 1, PHONG = 2 };
+enum ShaderTypeHint { WIREFRAME = 0, NORMALS = 1, PHONG = 2, TEMP = 3, PHI = 4 };
 
 class ClothSimulator {
 public:
@@ -39,7 +39,9 @@ public:
 
 private:
   virtual void initGUI(Screen *screen);
-  void drawWireframe(GLShader &shader);
+  void drawTemp(GLShader &shader);
+  void drawPhi(GLShader &shader);
+
   void drawNormals(GLShader &shader);
   void drawPhong(GLShader &shader);
   
@@ -58,8 +60,8 @@ private:
 
   // Default simulation values
 
-  int frames_per_sec = 90;
-  int simulation_steps = 30;
+  int frames_per_sec = 60;
+  int simulation_steps = 10;
 
   CGL::Vector3D gravity = CGL::Vector3D(0, -9.8, 0);
   nanogui::Color color = nanogui::Color(1.0f, 1.0f, 1.0f, 1.0f);
