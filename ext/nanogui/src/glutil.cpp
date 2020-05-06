@@ -284,6 +284,10 @@ void GLShader::drawArray(int type, uint32_t offset, uint32_t count) {
     if (count == 0)
         return;
 
+    // make points bigger
+    if(type == GL_POINTS)
+        glPointSize(2.0f);
+
     glDrawArrays(type, offset, count);
 }
 

@@ -77,9 +77,19 @@ void Fire::build_map() {
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
-				map.emplace_back(new FireVoxel(-1, 0, 1.3, 1));	// -1 because no fuel, 0 deg Celcius,
-																	// 1.3 kg/m^3 density, 1 atm
-																	// values are kinda made up for now cause units are hard
+				double x, y, z;
+				x = i * VOXEL_H;
+				y = j * VOXEL_H;
+				z = k * VOXEL_H;
+
+				// fake a plane where phi == 0 for render testing
+				if (i == N / 2) {
+					implicit_surface.emplace_back(new FireVoxel(0, 100, 1.3, 1, Vector3D(x, y, z)));
+				}
+
+				map.emplace_back(new FireVoxel(-1, 0, 1.3, 1, Vector3D(x, y, z)));	// -1 because no fuel, 0 deg Celcius,
+																					// 1.3 kg/m^3 density, 1 atm
+																					// values are kinda made up for now cause units are hard			
 			}
 		}
 	}
@@ -153,12 +163,18 @@ void Fire::build_map() {
 }
 
 void Fire::simulate(double delta_t, FireParameters *fp) {
+	implicit_surface.clear();
 	// need to add a way to propogate fuel velocities for this to work
 
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
-				map[i * N * N + j * N + k]->update_phi(delta_t, fp->S);
+				FireVoxel* fv = map[i * N * N + j * N + k];
+				fv->update_phi(delta_t, fp->S);
+
+				if (fv->phi == 0) {
+					implicit_surface.emplace_back(fv);
+				}
 			}
 		}
 	}

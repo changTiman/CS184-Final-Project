@@ -12,7 +12,7 @@ using namespace std;
 
 struct FireVoxel {
     FireVoxel() {}
-    FireVoxel(double phi, double temp, double rho, double pres) : phi(phi), temp(temp), rho(rho), pres(pres) {}
+    FireVoxel(double phi, double temp, double rho, double pres, Vector3D pos) : phi(phi), temp(temp), rho(rho), pres(pres), position(pos) {}
     ~FireVoxel() {}
 
     // phi will define whether rho and p are for fuel or hot gaseous products
@@ -22,7 +22,10 @@ struct FireVoxel {
     double prev_phi;    // phi at last time step
     double temp;        // temperature
     double rho;         // density
-    double pres;        // pressure   
+    double pres;        // pressure
+
+    // Position
+    Vector3D position;
 
     // Velocity components
     double *u_down;  // i - 1/2 velocity
@@ -65,6 +68,9 @@ struct Fire {
     // N^3 Voxel
     // paper stores implicit surface, temperature, density, pressure at each voxel center
     vector<FireVoxel *> map;
+
+    // store separate map for just the points where phi == 0 for basic point rendering
+    vector<FireVoxel*> implicit_surface;
 
     void build_map();
     void simulate(double delta_t, FireParameters *fp);

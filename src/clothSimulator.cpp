@@ -309,13 +309,14 @@ void ClothSimulator::drawContents() {
     break;
   }
 
-  for (CollisionObject *co : *collision_objects) {
+  // don't render sphere
+  /*for (CollisionObject *co : *collision_objects) {
     co->render(shader);
-  }
+  }*/
 }
 
 void ClothSimulator::drawWireframe(GLShader &shader) {
-  int num_structural_springs =
+  /*int num_structural_springs =
       2 * cloth->num_width_points * cloth->num_height_points -
       cloth->num_width_points - cloth->num_height_points;
   int num_shear_springs =
@@ -363,7 +364,20 @@ void ClothSimulator::drawWireframe(GLShader &shader) {
   // Commented out: the wireframe shader does not have this attribute
   //shader.uploadAttrib("in_normal", normals);
 
-  shader.drawArray(GL_LINES, 0, num_springs * 2);
+  shader.drawArray(GL_LINES, 0, num_springs * 2);*/
+
+  // Make fire render here for now because default renderer
+  MatrixXf positions(4, fire->implicit_surface.size());
+
+  for (int i = 0; i < fire->implicit_surface.size(); i++) {
+      FireVoxel fv = *fire->implicit_surface[i];
+      Vector3D p = fv.position;
+
+      positions.col(i) << p.x, p.y, p.z, 1.0;
+  }
+
+  shader.uploadAttrib("in_position", positions, false);
+  shader.drawArray(GL_POINTS, 0, fire->implicit_surface.size());
 }
 
 void ClothSimulator::drawNormals(GLShader &shader) {
