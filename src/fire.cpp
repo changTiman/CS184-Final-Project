@@ -83,9 +83,9 @@ void Fire::build_map() {
 				z = k * VOXEL_H;
 
 				// fake a plane where phi == 0 for render testing
-				if (i == N / 2) {
+				/*if (i == N / 2) {
 					implicit_surface.emplace_back(new FireVoxel(0, 100, 1.3, 1, Vector3D(x, y, z)));
-				}
+				}*/
 
 				map.emplace_back(new FireVoxel(-1, 0, 1.3, 1, Vector3D(x, y, z)));	// -1 because no fuel, 0 deg Celcius,
 																					// 1.3 kg/m^3 density, 1 atm
