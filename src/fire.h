@@ -12,7 +12,7 @@ using namespace std;
 
 struct FireVoxel {
     FireVoxel() {}
-    FireVoxel(double phi, double temp, double rho, double pres, Vector3D pos) : phi(phi), temp(temp), rho(rho), pres(pres), position(pos) {}
+    FireVoxel(double phi, double temp, double rho, double pres, Vector3D pos) : phi(phi), temp(temp), rho(rho), pres(pres), position(pos), prev_phi(phi) {}
     ~FireVoxel() {}
 
     // phi will define whether rho and p are for fuel or hot gaseous products

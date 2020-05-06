@@ -7,7 +7,7 @@
 using namespace std;
 
 constexpr auto VOXEL_H = 0.05;	// arbitrary number, can change this;
-constexpr auto N = 120;		// also arbitrary;
+constexpr auto N = 20;		// also arbitrary;
 
 //FireVoxel::FireVoxel(double phi, double temp, double rho, double pres) {
 //	this->phi = phi;
@@ -98,25 +98,13 @@ void Fire::build_map() {
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
-				FireVoxel curr = *map[i * N * N + j * N + k];
-				if (i != 0) {
-					curr.i_down = map[(i - 1) * N * N + j * N + k];
-				}
-				if (i != N - 1) {
-					curr.i_up = map[(i + 1) * N * N + j * N + k];
-				}
-				if (j != 0) {
-					curr.j_down = map[i * N * N + (j - 1) * N + k];
-				}
-				if (j != N - 1) {
-					curr.j_up = map[i * N * N + (j + 1) * N + k];
-				}
-				if (k != 0) {
-					curr.k_down = map[i * N * N + j * N + k - 1];
-				}
-				if (k != N - 1) {
-					curr.k_up = map[i * N * N + j * N + k + 1];
-				}
+				FireVoxel &curr = *map[i * N * N + j * N + k];
+				curr.i_down = i == 0 ? &curr : map[(i - 1) * N * N + j * N + k];
+				curr.i_up = i == N - 1 ? &curr : map[(i + 1) * N * N + j * N + k];
+				curr.j_down = j == 0 ? &curr : map[i * N * N + (j - 1) * N + k];
+				curr.j_up = j == N - 1 ? &curr : map[i * N * N + (j + 1) * N + k];
+				curr.k_down = k == 0 ? &curr : map[i * N * N + j * N + k - 1];
+				curr.k_up = k == N - 1 ? &curr : map[i * N * N + j * N + k + 1];
 			}
 		}
 	}
@@ -125,37 +113,21 @@ void Fire::build_map() {
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
-				FireVoxel curr = *map[i * N * N + j * N + k];
-
-				if (i != 0 && curr.u_down != map[(i - 1) * N * N + j * N + k]->u_up) {
-					double u_d = 0.0;
-					curr.u_down = &u_d;
-					map[(i - 1) * N * N + j * N + k]->u_up = &u_d;
+				FireVoxel &curr = *map[i * N * N + j * N + k];
+				if (i != 0) {
+					auto u_d = new double(0.0);
+					curr.u_down = u_d;
+					map[(i - 1) * N * N + j * N + k]->u_up = u_d;
 				}
-				if (i != N - 1 && curr.u_up != map[(i + 1) * N * N + j * N + k]->u_down) {
-					double u_u = 0.0;
-					curr.u_up = &u_u;
-					map[(i + 1) * N * N + j * N + k]->u_down = &u_u;
+				if (j != 0) {
+					auto v_d = new double(0.0);
+					curr.v_down = v_d;
+					map[i * N * N + (j - 1) * N + k]->v_up = v_d;
 				}
-				if (j != 0 && curr.v_down != map[i * N * N + (j - 1) * N + k]->v_up) {
-					double v_d = 0.0;
-					curr.v_down = &v_d;
-					map[i * N * N + (j - 1) * N + k]->v_up = &v_d;
-				}
-				if (j != N - 1 && curr.v_up != map[i * N * N + (j + 1) * N + k]->v_down) {
-					double v_u = 0.0;
-					curr.v_up = &v_u;
-					map[i * N * N + (j + 1) * N + k]->v_down = &v_u;
-				}
-				if (k != 0 && curr.w_down != map[i * N * N + j * N + k - 1]->w_up) {
-					double w_d = 0.0;
-					curr.w_down = &w_d;
-					map[i * N * N + j * N + k - 1]->w_up = &w_d;
-				}
-				if (k != N - 1 && curr.w_up != map[i * N * N + j * N + k + 1]->w_down) {
-					double w_u = 0.0;
-					curr.w_up = &w_u;
-					map[i * N * N + j * N + k + 1]->w_down = &w_u;
+				if (k != 0) {
+					auto w_d = new double(0.0);
+					curr.w_down = w_d;
+					map[i * N * N + j * N + k - 1]->w_up = w_d;
 				}
 			}
 		}
