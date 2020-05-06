@@ -111,6 +111,8 @@ void Fire::build_map() {
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
+				// default to curr to avoid null pointer errors, this may lead
+				// to some weird edge effects. should fix later.
 				FireVoxel &curr = *map[i * N * N + j * N + k];
 				curr.i_down = i == 0 ? &curr : map[(i - 1) * N * N + j * N + k];
 				curr.i_up = i == N - 1 ? &curr : map[(i + 1) * N * N + j * N + k];
@@ -127,17 +129,35 @@ void Fire::build_map() {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
 				FireVoxel &curr = *map[i * N * N + j * N + k];
-				if (i != 0) {
+				if (i == N - 1) {
+					curr.u_up = new double(0.0);
+				}
+				if (i == 0) {
+					curr.u_down = new double(0.0);
+				}
+				else {
 					auto u_d = new double(0.0);
 					curr.u_down = u_d;
 					map[(i - 1) * N * N + j * N + k]->u_up = u_d;
 				}
-				if (j != 0) {
+				if (j == N - 1) {
+					curr.v_up = new double(0.0);
+				}
+				if (j == 0) {
+					curr.v_down = new double(0.0);
+				}
+				else {
 					auto v_d = new double(0.0);
 					curr.v_down = v_d;
 					map[i * N * N + (j - 1) * N + k]->v_up = v_d;
 				}
-				if (k != 0) {
+				if (k == N - 1) {
+					curr.w_up = new double(0.0);
+				}
+				if (k == 0) {
+					curr.w_down = new double(0.0);
+				}
+				else {
 					auto w_d = new double(0.0);
 					curr.w_down = w_d;
 					map[i * N * N + j * N + k - 1]->w_up = w_d;
@@ -145,6 +165,7 @@ void Fire::build_map() {
 			}
 		}
 	}
+	// i==0 -> u_down = 
 }
 
 void Fire::simulate(double delta_t, FireParameters *fp) {
