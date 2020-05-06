@@ -7,7 +7,8 @@
 using namespace std;
 
 constexpr auto VOXEL_H = 0.05;	// arbitrary number, can change this;
-constexpr auto N = 120;		// also arbitrary;
+// i lowered it to 30 for speed
+constexpr auto N = 30;		// also arbitrary;
 const auto SOURCE = Vector3D(0, 0, 0);	// source of fuel
 
 //FireVoxel::FireVoxel(double phi, double temp, double rho, double pres) {
@@ -17,13 +18,17 @@ const auto SOURCE = Vector3D(0, 0, 0);	// source of fuel
 //	this->pres = pres;
 //}
 
+// normal n: normal to level set
 Vector3D FireVoxel::normal() {
 	double phi_x = (i_up->phi - i_down->phi) / (2 * VOXEL_H);
 	double phi_y = (j_up->phi - j_down->phi) / (2 * VOXEL_H);
 	double phi_z = (k_up->phi - k_down->phi) / (2 * VOXEL_H);
-	return Vector3D(phi_x, phi_y, phi_z);
+	auto normal = Vector3D(phi_x, phi_y, phi_z);
+	normal.normalize();
+	return normal;
 }
 
+// u_f: movement of fuel
 Vector3D FireVoxel::uf() {
 	double u = (*u_down + *u_up) / 2;
 	double v = (*v_down + *v_up) / 2;
@@ -31,6 +36,7 @@ Vector3D FireVoxel::uf() {
 	return Vector3D(u, v, w);
 }
 
+// w: net movement of level set
 Vector3D FireVoxel::w(double s) {
 	return uf() + s * normal();
 }
@@ -70,12 +76,13 @@ void FireVoxel::update_phi(double delta_t, double s) {
 	}
 
 	prev_phi = phi;
-	phi = phi_x + phi_y + phi_z;	// not really sure how this works out (phi_x notation confusing on the paper)
+	phi = phi - delta_t * (w_vec.x * phi_x + w_vec.y * phi_y + w_vec.z * phi_z);
 }
 
 void FireVoxel::update_temp() {
 	// naive temperature based on linear distance from source
 	temp = (double) 200.0 - (position - SOURCE).norm() * 50;
+	temp = 200 + (phi * 100);
 }
 
 void Fire::build_map() {
@@ -92,7 +99,7 @@ void Fire::build_map() {
 
 				// fake a plane where phi == 0 for render testing
 				if (i + j + k == N / 2) {
-					implicit_surface.emplace_back(new FireVoxel(0, 100, 1.3, 1, pos));
+					//implicit_surface.emplace_back(new FireVoxel(0, 100, 1.3, 1, pos));
 				}
 				else if (i + j + k < N / 2) {
 					FireVoxel *fv = new FireVoxel(1, 150, 1.3, 1, pos);
@@ -100,9 +107,12 @@ void Fire::build_map() {
 					fv->update_temp();
 				}
 
-				map.emplace_back(new FireVoxel(-1, 0, 1.3, 1, pos));	// -1 because no fuel, 0 deg Celcius,
-																					// 1.3 kg/m^3 density, 1 atm
-																					// values are kinda made up for now cause units are hard			
+				// -1 because no fuel, 0 deg Celcius,
+				// 1.3 kg/m^3 density, 1 atm
+				// values are kinda made up for now cause units are hard			
+				double phi = i + j + k < N / 3 ? 1.1 : -1.1;
+				phi += rand() / 100.0f;
+				map.emplace_back(new FireVoxel(phi, 0, 1.3, 1, pos));
 			}
 		}
 	}
@@ -177,7 +187,7 @@ void Fire::simulate(double delta_t, FireParameters *fp) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
 				FireVoxel* fv = map[i * N * N + j * N + k];
-				fv->update_phi(delta_t, fp->S);
+				fv->update_phi(delta_t, 0.1);
 
 				if (fv->phi == 0) {
 					implicit_surface.emplace_back(fv);
