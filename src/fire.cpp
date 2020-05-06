@@ -149,6 +149,7 @@ void Fire::build_map() {
 
 void Fire::simulate(double delta_t, FireParameters *fp) {
 	implicit_surface.clear();
+	fuel.clear();
 	// need to add a way to propogate fuel velocities for this to work
 
 	for (int i = 0; i < N; i++) {
@@ -159,6 +160,9 @@ void Fire::simulate(double delta_t, FireParameters *fp) {
 
 				if (fv->phi == 0) {
 					implicit_surface.emplace_back(fv);
+				}
+				else if (fv->phi > 0) {
+					fuel.emplace_back(fv);
 				}
 			}
 		}
