@@ -6,10 +6,10 @@
 
 using namespace std;
 
-constexpr auto VOXEL_H = 0.05;	// arbitrary number, can change this;
-// i lowered it to 30 for speed
-constexpr auto N = 30;		// also arbitrary;
-const auto SOURCE = Vector3D(0, 0, 0);	// source of fuel
+constexpr auto VOXEL_H = 0.05;									// arbitrary number, can change this;
+constexpr auto N = 120;											// also arbitrary;
+const auto SOURCE = Vector3D(N/2 * VOXEL_H, 0, N/2 * VOXEL_H);	// source of fuel
+constexpr auto FUEL_R = 15;										// radius of fuel source [points]
 
 //FireVoxel::FireVoxel(double phi, double temp, double rho, double pres) {
 //	this->phi = phi;
@@ -82,7 +82,6 @@ void FireVoxel::update_phi(double delta_t, double s) {
 void FireVoxel::update_temp() {
 	// naive temperature based on linear distance from source
 	temp = (double) 200.0 - (position - SOURCE).norm() * 50;
-	temp = 200 + (phi * 100);
 }
 
 void Fire::build_map() {
@@ -97,22 +96,22 @@ void Fire::build_map() {
 
 				Vector3D pos = Vector3D(x, y, z);
 
+				FireVoxel *fv = new FireVoxel(-1, 0, 1.3, 1, pos);
+
+				map.emplace_back(fv);	// -1 because no fuel, 0 deg Celcius,
+																		// 1.3 kg/m^3 density, 1 atm
+																		// values are kinda made up for now cause units are hard			
+				
 				// fake a plane where phi == 0 for render testing
-				if (i + j + k == N / 2) {
-					//implicit_surface.emplace_back(new FireVoxel(0, 100, 1.3, 1, pos));
+				if (j == N / 2) {
+					implicit_surface.emplace_back(fv);
 				}
-				else if (i + j + k < N / 2) {
-					FireVoxel *fv = new FireVoxel(1, 150, 1.3, 1, pos);
+				else if (j <= N / 2 && (SOURCE - Vector3D(x, 0, z)).norm() <= FUEL_R * VOXEL_H) {
+					fv->phi = 1;
+					fv->temp = 150;
 					fuel.emplace_back(fv);
 					fv->update_temp();
 				}
-
-				// -1 because no fuel, 0 deg Celcius,
-				// 1.3 kg/m^3 density, 1 atm
-				// values are kinda made up for now cause units are hard			
-				double phi = i + j + k < N / 3 ? 1.1 : -1.1;
-				phi += rand() / 100.0f;
-				map.emplace_back(new FireVoxel(phi, 0, 1.3, 1, pos));
 			}
 		}
 	}
@@ -172,6 +171,22 @@ void Fire::build_map() {
 					curr.w_down = w_d;
 					map[i * N * N + j * N + k - 1]->w_up = w_d;
 				}
+			}
+		}
+	}
+
+	// initialize source in middle of j == 0 plane
+	int source_bot = N / 2 - FUEL_R + 1;
+	int source_top = N / 2 + FUEL_R;
+
+	for (int i = source_bot; i < source_top; i++) {
+		for (int k = source_bot; k < source_top; k++) {
+			FireVoxel* curr = map[i * N * N + k];
+			cout << curr->position << endl;
+			if ((SOURCE - curr->position).norm() <= FUEL_R * VOXEL_H) {
+				curr->temp = 200;
+				*(curr->u_down) = 5.0;
+				source.emplace_back(curr);
 			}
 		}
 	}

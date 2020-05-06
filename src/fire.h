@@ -73,6 +73,7 @@ struct Fire {
     // store separate map for just the points where phi == 0 for basic point rendering
     vector<FireVoxel *> implicit_surface;
     vector<FireVoxel *> fuel;
+    vector<FireVoxel *> source;
 
     void build_map();
     void simulate(double delta_t, FireParameters *fp);
