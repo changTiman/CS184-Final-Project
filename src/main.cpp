@@ -280,7 +280,7 @@ bool loadObjectsFromFile(string filename, Cloth *cloth, ClothParameters *cp, vec
         incompleteObjectError("cloth", "damping");
       }
 
-      auto it_density = object.find("densitCloth Simulatory");
+      auto it_density = object.find("density");
       if (it_density != object.end()) {
         density = *it_density;
       } else {
@@ -400,6 +400,7 @@ int main(int argc, char **argv) {
   Cloth cloth;
   Fire fire;
   ClothParameters cp;
+  FireParameters fp;
   vector<CollisionObject *> objects;
   
   int c;
@@ -482,6 +483,7 @@ int main(int argc, char **argv) {
   app->loadCloth(&cloth);
   app->loadFire(&fire);
   app->loadClothParameters(&cp);
+  app->loadFireParameters(&fp);
   app->loadCollisionObjects(&objects);
   app->init();
 
