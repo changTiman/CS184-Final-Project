@@ -367,17 +367,22 @@ void ClothSimulator::drawWireframe(GLShader &shader) {
   shader.drawArray(GL_LINES, 0, num_springs * 2);*/
 
   // Make fire render here for now because default renderer
-  MatrixXf positions(4, fire->implicit_surface.size());
+  vector<FireVoxel*> fire_render = fire->fuel;
+  //vector<FireVoxel*> fire_render = fire->implicit_surface;
+  MatrixXf positions(4, fire_render.size());
+  MatrixXf temps(1, fire_render.size());
 
-  for (int i = 0; i < fire->implicit_surface.size(); i++) {
-      FireVoxel fv = *fire->implicit_surface[i];
+  for (int i = 0; i < fire_render.size(); i++) {
+      FireVoxel fv = *fire_render[i];
       Vector3D p = fv.position;
 
       positions.col(i) << p.x, p.y, p.z, 1.0;
+      temps.col(i) << fv.temp;
   }
 
   shader.uploadAttrib("in_position", positions, false);
-  shader.drawArray(GL_POINTS, 0, fire->implicit_surface.size());
+  shader.uploadAttrib("in_temp", temps, false);
+  shader.drawArray(GL_POINTS, 0, fire_render.size());
 }
 
 void ClothSimulator::drawNormals(GLShader &shader) {

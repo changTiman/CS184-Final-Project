@@ -8,6 +8,7 @@ using namespace std;
 
 constexpr auto VOXEL_H = 0.05;	// arbitrary number, can change this;
 constexpr auto N = 120;		// also arbitrary;
+const auto SOURCE = Vector3D(0, 0, 0);	// source of fuel
 
 //FireVoxel::FireVoxel(double phi, double temp, double rho, double pres) {
 //	this->phi = phi;
@@ -72,6 +73,11 @@ void FireVoxel::update_phi(double delta_t, double s) {
 	phi = phi_x + phi_y + phi_z;	// not really sure how this works out (phi_x notation confusing on the paper)
 }
 
+void FireVoxel::update_temp() {
+	// naive temperature based on linear distance from source
+	temp = (double) 200.0 - (position - SOURCE).norm() * 50;
+}
+
 void Fire::build_map() {
 	// initialize FireVoxel
 	for (int i = 0; i < N; i++) {
@@ -82,12 +88,19 @@ void Fire::build_map() {
 				y = j * VOXEL_H;
 				z = k * VOXEL_H;
 
-				// fake a plane where phi == 0 for render testing
-				/*if (i == N / 2) {
-					implicit_surface.emplace_back(new FireVoxel(0, 100, 1.3, 1, Vector3D(x, y, z)));
-				}*/
+				Vector3D pos = Vector3D(x, y, z);
 
-				map.emplace_back(new FireVoxel(-1, 0, 1.3, 1, Vector3D(x, y, z)));	// -1 because no fuel, 0 deg Celcius,
+				// fake a plane where phi == 0 for render testing
+				if (i + j + k == N / 2) {
+					implicit_surface.emplace_back(new FireVoxel(0, 100, 1.3, 1, pos));
+				}
+				else if (i + j + k < N / 2) {
+					FireVoxel *fv = new FireVoxel(1, 150, 1.3, 1, pos);
+					fuel.emplace_back(fv);
+					fv->update_temp();
+				}
+
+				map.emplace_back(new FireVoxel(-1, 0, 1.3, 1, pos));	// -1 because no fuel, 0 deg Celcius,
 																					// 1.3 kg/m^3 density, 1 atm
 																					// values are kinda made up for now cause units are hard			
 			}

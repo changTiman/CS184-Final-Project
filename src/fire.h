@@ -49,6 +49,7 @@ struct FireVoxel {
     Vector3D w(double s);   // implicit surface velocity
                             // not sure how to pass S efficiently b/c different structs
     void update_phi(double delta_t, double s);
+    void update_temp();
 };
 
 struct FireParameters {
@@ -70,7 +71,8 @@ struct Fire {
     vector<FireVoxel *> map;
 
     // store separate map for just the points where phi == 0 for basic point rendering
-    vector<FireVoxel*> implicit_surface;
+    vector<FireVoxel *> implicit_surface;
+    vector<FireVoxel *> fuel;
 
     void build_map();
     void simulate(double delta_t, FireParameters *fp);
