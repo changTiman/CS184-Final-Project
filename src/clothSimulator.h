@@ -5,6 +5,7 @@
 
 #include "camera.h"
 #include "cloth.h"
+#include "fire.h"
 #include "collision/collisionObject.h"
 
 using namespace nanogui;
@@ -20,7 +21,9 @@ public:
   void init();
 
   void loadCloth(Cloth *cloth);
+  void loadFire(Fire *fire);
   void loadClothParameters(ClothParameters *cp);
+  void loadFireParameters(FireParameters *fp);
   void loadCollisionObjects(vector<CollisionObject *> *objects);
   virtual bool isAlive();
   virtual void drawContents();
@@ -62,7 +65,9 @@ private:
   nanogui::Color color = nanogui::Color(1.0f, 1.0f, 1.0f, 1.0f);
 
   Cloth *cloth;
+  Fire *fire;
   ClothParameters *cp;
+  FireParameters *fp;
   vector<CollisionObject *> *collision_objects;
 
   // OpenGL attributes
@@ -136,13 +141,13 @@ private:
 };
 
 struct UserShader {
-  UserShader(std::string display_name, GLShader nanogui_shader, ShaderTypeHint type_hint)
+  UserShader(std::string display_name, std::shared_ptr<GLShader> nanogui_shader, ShaderTypeHint type_hint)
   : display_name(display_name)
   , nanogui_shader(nanogui_shader)
   , type_hint(type_hint) {
   }
   
-  GLShader nanogui_shader;
+  std::shared_ptr<GLShader> nanogui_shader;
   std::string display_name;
   ShaderTypeHint type_hint;
   

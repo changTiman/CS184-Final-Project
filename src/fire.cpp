@@ -6,35 +6,35 @@
 
 using namespace std;
 
-constexpr auto VOXEL_H = 0.1;	// arbitrary number, can change this;
-constexpr auto N = 1000;		// also arbitrary;
+constexpr auto VOXEL_H = 0.05;	// arbitrary number, can change this;
+constexpr auto N = 120;		// also arbitrary;
 
-//FireParameters::FireParameters(double phi, double temp, double rho, double pres) {
+//FireVoxel::FireVoxel(double phi, double temp, double rho, double pres) {
 //	this->phi = phi;
 //	this->temp = temp;
 //	this->rho = rho;
 //	this->pres = pres;
 //}
 
-Vector3D FireParameters::normal() {
+Vector3D FireVoxel::normal() {
 	double phi_x = (i_up->phi - i_down->phi) / (2 * VOXEL_H);
 	double phi_y = (j_up->phi - j_down->phi) / (2 * VOXEL_H);
 	double phi_z = (k_up->phi - k_down->phi) / (2 * VOXEL_H);
 	return Vector3D(phi_x, phi_y, phi_z);
 }
 
-Vector3D FireParameters::uf() {
+Vector3D FireVoxel::uf() {
 	double u = (*u_down + *u_up) / 2;
 	double v = (*v_down + *v_up) / 2;
 	double w = (*w_down + *w_up) / 2;
 	return Vector3D(u, v, w);
 }
 
-Vector3D FireParameters::w(double s) {
+Vector3D FireVoxel::w(double s) {
 	return uf() + s * normal();
 }
 
-void FireParameters::update_phi(double delta_t, double s) {
+void FireVoxel::update_phi(double delta_t, double s) {
 	// upwind differencing approach
 	Vector3D w_vec = w(s);
 	double phi_x, phi_y, phi_z;
@@ -73,22 +73,22 @@ void FireParameters::update_phi(double delta_t, double s) {
 }
 
 void Fire::build_map() {
-	// initialize FireParameters
+	// initialize FireVoxel
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
-				map.emplace_back(new FireParameters(-1, 0, 1.3, 1));	// -1 because no fuel, 0 deg Celcius,
+				map.emplace_back(new FireVoxel(-1, 0, 1.3, 1));	// -1 because no fuel, 0 deg Celcius,
 																	// 1.3 kg/m^3 density, 1 atm
 																	// values are kinda made up for now cause units are hard
 			}
 		}
 	}
 
-	// handle FireParameters pointers
+	// handle FireVoxel pointers
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
-				FireParameters curr = *map[i * N * N + j * N + k];
+				FireVoxel curr = *map[i * N * N + j * N + k];
 				if (i != 0) {
 					curr.i_down = map[(i - 1) * N * N + j * N + k];
 				}
@@ -115,7 +115,7 @@ void Fire::build_map() {
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
-				FireParameters curr = *map[i * N * N + j * N + k];
+				FireVoxel curr = *map[i * N * N + j * N + k];
 
 				if (i != 0 && curr.u_down != map[(i - 1) * N * N + j * N + k]->u_up) {
 					double u_d = 0.0;
@@ -152,15 +152,13 @@ void Fire::build_map() {
 	}
 }
 
-void Fire::simulate(double delta_t) {
+void Fire::simulate(double delta_t, FireParameters *fp) {
 	// need to add a way to propogate fuel velocities for this to work
-
-	//for (const auto fp : )
 
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
-				map[i * N * N + j * N + k]->update_phi(delta_t, S);
+				map[i * N * N + j * N + k]->update_phi(delta_t, fp->S);
 			}
 		}
 	}

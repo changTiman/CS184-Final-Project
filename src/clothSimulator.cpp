@@ -1,4 +1,3 @@
-#define _USE_MATH_DEFINES
 #include <cmath>
 #include <glad/glad.h>
 
@@ -6,7 +5,6 @@
 #include <nanogui/nanogui.h>
 
 #include "clothSimulator.h"
-#include "leak_fix.h"
 
 #include "camera.h"
 #include "cloth.h"
@@ -124,8 +122,8 @@ void ClothSimulator::load_shaders() {
       vert_shader = associated_vert_shader_path;
     }
     
-    GLShader nanogui_shader;
-    nanogui_shader.initFromFiles(shader_name, vert_shader,
+    std::shared_ptr<GLShader> nanogui_shader = make_shared<GLShader>();
+    nanogui_shader->initFromFiles(shader_name, vert_shader,
                                   m_project_root + "/shaders/" + shader_fname);
     
     // Special filenames are treated a bit differently
@@ -169,7 +167,7 @@ ClothSimulator::ClothSimulator(std::string project_root, Screen *screen)
 
 ClothSimulator::~ClothSimulator() {
   for (auto shader : shaders) {
-    shader.nanogui_shader.free();
+    shader.nanogui_shader->free();
   }
   glDeleteTextures(1, &m_gl_texture_1);
   glDeleteTextures(1, &m_gl_texture_2);
@@ -178,11 +176,16 @@ ClothSimulator::~ClothSimulator() {
   glDeleteTextures(1, &m_gl_cubemap_tex);
 
   if (cloth) delete cloth;
+  if (fire) delete fire;
   if (cp) delete cp;
   if (collision_objects) delete collision_objects;
 }
 
+void ClothSimulator::loadFire(Fire *fire) { this->fire = fire; }
+
 void ClothSimulator::loadCloth(Cloth *cloth) { this->cloth = cloth; }
+
+void ClothSimulator::loadFireParameters(FireParameters *fp) { this->fp = fp; }
 
 void ClothSimulator::loadClothParameters(ClothParameters *cp) { this->cp = cp; }
 
@@ -247,7 +250,8 @@ void ClothSimulator::drawContents() {
     vector<Vector3D> external_accelerations = {gravity};
 
     for (int i = 0; i < simulation_steps; i++) {
-      cloth->simulate(frames_per_sec, simulation_steps, cp, external_accelerations, collision_objects);
+      // cloth->simulate(frames_per_sec, simulation_steps, cp, external_accelerations, collision_objects);
+        fire->simulate(0.1, fp);
     }
   }
 
@@ -255,7 +259,7 @@ void ClothSimulator::drawContents() {
 
   const UserShader& active_shader = shaders[active_shader_idx];
 
-  GLShader shader = active_shader.nanogui_shader;
+  GLShader &shader = *active_shader.nanogui_shader;
   shader.bind();
 
   // Prepare the camera projection matrix
@@ -360,10 +364,6 @@ void ClothSimulator::drawWireframe(GLShader &shader) {
   //shader.uploadAttrib("in_normal", normals);
 
   shader.drawArray(GL_LINES, 0, num_springs * 2);
-
-#ifdef LEAK_PATCH_ON
-  shader.freeAttrib("in_position");
-#endif
 }
 
 void ClothSimulator::drawNormals(GLShader &shader) {
@@ -396,10 +396,6 @@ void ClothSimulator::drawNormals(GLShader &shader) {
   shader.uploadAttrib("in_normal", normals, false);
 
   shader.drawArray(GL_TRIANGLES, 0, num_tris * 3);
-#ifdef LEAK_PATCH_ON
-  shader.freeAttrib("in_position");
-  shader.freeAttrib("in_normal");
-#endif
 }
 
 void ClothSimulator::drawPhong(GLShader &shader) {
@@ -445,12 +441,6 @@ void ClothSimulator::drawPhong(GLShader &shader) {
   shader.uploadAttrib("in_tangent", tangents, false);
 
   shader.drawArray(GL_TRIANGLES, 0, num_tris * 3);
-#ifdef LEAK_PATCH_ON
-  shader.freeAttrib("in_position");
-  shader.freeAttrib("in_normal");
-  shader.freeAttrib("in_uv");
-  shader.freeAttrib("in_tangent");
-#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -469,7 +459,7 @@ Matrix4f ClothSimulator::getProjectionMatrix() {
   double cam_near = camera.near_clip();
   double cam_far = camera.far_clip();
 
-  double theta = camera.v_fov() * M_PI / 360;
+  double theta = camera.v_fov() * PI / 360;
   double range = cam_far - cam_near;
   double invtan = 1. / tanf(theta);
 

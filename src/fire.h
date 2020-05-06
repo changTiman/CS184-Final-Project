@@ -10,10 +10,10 @@
 using namespace CGL;
 using namespace std;
 
-struct FireParameters {
-    FireParameters() {}
-    FireParameters(double phi, double temp, double rho, double pres) : phi(phi), temp(temp), rho(rho), pres(pres) {}
-    ~FireParameters() {}
+struct FireVoxel {
+    FireVoxel() {}
+    FireVoxel(double phi, double temp, double rho, double pres) : phi(phi), temp(temp), rho(rho), pres(pres) {}
+    ~FireVoxel() {}
 
     // phi will define whether rho and p are for fuel or hot gaseous products
     double phi;         // implicit surface definition:  
@@ -34,12 +34,12 @@ struct FireParameters {
 
     // FireParameter Pointers for normal solving (maaybe there is a better way to implement this)
     // kinda like a mesh now
-    FireParameters *i_down; // i - 1 param
-    FireParameters *i_up;   // i + 1 param
-    FireParameters *j_down; // j - 1 param
-    FireParameters *j_up;   // j + 1 param
-    FireParameters *k_down; // k - 1 param
-    FireParameters *k_up;   // k + 1 param
+    FireVoxel *i_down; // i - 1 param
+    FireVoxel *i_up;   // i + 1 param
+    FireVoxel *j_down; // j - 1 param
+    FireVoxel *j_up;   // j + 1 param
+    FireVoxel *k_down; // k - 1 param
+    FireVoxel *k_up;   // k + 1 param
 
     Vector3D normal();
     Vector3D uf();
@@ -48,20 +48,25 @@ struct FireParameters {
     void update_phi(double delta_t, double s);
 };
 
-struct Fire {
-    Fire();
-    Fire(float S);
-    ~Fire();
+struct FireParameters {
+  FireParameters() {}
+  FireParameters(double S) : S(S) {}
+  ~FireParameters() {}
 
-    // Fire Properties
-    double S;   // reaction speed
+  // Fire Properties
+  double S;   // reaction speed
+};
+
+
+struct Fire {
+    Fire() {}
+    ~Fire() {}
 
     // N^3 Voxel
     // paper stores implicit surface, temperature, density, pressure at each voxel center
-    vector<FireParameters *> map;
+    vector<FireVoxel *> map;
 
     void build_map();
-    void simulate(double delta_t);
+    void simulate(double delta_t, FireParameters *fp);
 };
-
 #endif /* FIRE_H */
