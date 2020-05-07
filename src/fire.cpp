@@ -6,10 +6,11 @@
 
 using namespace std;
 
-constexpr auto VOXEL_H = 0.05;									// arbitrary number, can change this;
+constexpr auto VOXEL_H = 0.05;									// arbitrary number, can change this [meters]
 constexpr auto N = 30;											// also arbitrary;
 const auto SOURCE = Vector3D(N/2 * VOXEL_H, 0, N/2 * VOXEL_H);	// source of fuel
 constexpr auto FUEL_R = 15;										// radius of fuel source [points]
+constexpr auto S = 0.5;											// S as per paper [m/s]
 
 //FireVoxel::FireVoxel(double phi, double temp, double rho, double pres) {
 //	this->phi = phi;
@@ -24,7 +25,9 @@ Vector3D FireVoxel::normal() {
 	double phi_y = (j_up->phi - j_down->phi) / (2 * VOXEL_H);
 	double phi_z = (k_up->phi - k_down->phi) / (2 * VOXEL_H);
 	auto normal = Vector3D(phi_x, phi_y, phi_z);
-	normal.normalize();
+	if (phi_x != 0 || phi_y != 0 || phi_z != 0) {
+		normal.normalize();
+	}	
 	return normal;
 }
 
@@ -38,6 +41,8 @@ Vector3D FireVoxel::uf() {
 
 // w: net movement of level set
 Vector3D FireVoxel::w(double s) {
+	Vector3D u = uf();
+	Vector3D n = normal();
 	return uf() + s * normal();
 }
 
@@ -96,14 +101,14 @@ void Fire::build_map() {
 
 				Vector3D pos = Vector3D(x, y, z);
 
-				FireVoxel *fv = new FireVoxel(-1, 0, 1.3, 1, pos);
+				FireVoxel *fv = new FireVoxel(-1, 20, 1.3, 1, pos);
 
-				map.emplace_back(fv);	// -1 because no fuel, 0 deg Celcius,
+				map.emplace_back(fv);	// -1 because no fuel, 20 deg Celcius,
 																		// 1.3 kg/m^3 density, 1 atm
 																		// values are kinda made up for now cause units are hard			
 				
 				// fake a plane where phi == 0 for render testing
-				if (j == N / 2) {
+				/*if (j == N / 2) {
 					implicit_surface.emplace_back(fv);
 				}
 				else if (j <= N / 2 && (SOURCE - Vector3D(x, 0, z)).norm() <= FUEL_R * VOXEL_H) {
@@ -111,7 +116,7 @@ void Fire::build_map() {
 					fv->temp = 150;
 					fuel.emplace_back(fv);
 					fv->update_temp();
-				}
+				}*/
 			}
 		}
 	}
@@ -183,9 +188,12 @@ void Fire::build_map() {
 		for (int k = source_bot; k < source_top; k++) {
 			FireVoxel* curr = map[i * N * N + k];
 			if ((SOURCE - curr->position).norm() <= FUEL_R * VOXEL_H) {
+				curr->phi = 1;
 				curr->temp = 200;
-				*(curr->u_down) = 5.0;
+				*(curr->v_down) = 5.0;		// units are m/s; use v for consistency with j
 				source.emplace_back(curr);
+				fuel.emplace_back(curr);	// source is also fuel
+				implicit_surface.emplace_back(curr);
 			}
 		}
 	}
@@ -193,9 +201,29 @@ void Fire::build_map() {
 }
 
 void Fire::simulate(double delta_t, FireParameters *fp) {
-	implicit_surface.clear();
+	// fuel propogation from implicit surface
+	// ISSUE: the velocities have to be synced up with delta_t because we aren't tracking individual particles
+	for (auto f : implicit_surface) {
+		double mass = VOXEL_H * VOXEL_H * VOXEL_H * f->rho;
+		double acc = -9.8;			// hard-coded gravity (not sure how to use external acelerations vector)
+		double damping = 0.8;		// arbitrary damping value
+		//Vector3D uf = f->uf();	// this averages down velocity too fast
+
+		//bool s = std::find(source.begin(), source.end(), f) != source.end();
+		
+		double dist = damping * (*(f->v_down) * delta_t + 0.5 * acc * delta_t * delta_t);
+		FireVoxel *curr = f;
+
+		// update all voxels that will be passed through by a single fuel particle in delta_t
+		for (int j = 0; j < floor(dist / VOXEL_H); j++) {
+			double next_vel = (damping) * (*(curr->v_down) + acc * delta_t);
+			*(curr->v_up) = next_vel;
+			curr = curr->j_up;
+		}
+	}
+
 	fuel.clear();
-	// need to add a way to propogate fuel velocities for this to work
+	implicit_surface.clear();
 
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
@@ -212,4 +240,5 @@ void Fire::simulate(double delta_t, FireParameters *fp) {
 			}
 		}
 	}
+
 }
