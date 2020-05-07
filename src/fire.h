@@ -24,6 +24,8 @@ struct FireVoxel {
     double rho;         // density
     double pres;        // pressure
 
+    bool fixed_phi = false;
+
     // Position
     Vector3D position;
 

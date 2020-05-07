@@ -76,7 +76,9 @@ void FireVoxel::update_phi(double delta_t, double s) {
 	}
 
 	prev_phi = phi;
-	phi = phi - delta_t * (w_vec.x * phi_x + w_vec.y * phi_y + w_vec.z * phi_z);
+	if (!fixed_phi) {
+		phi = phi - delta_t * (w_vec.x * phi_x + w_vec.y * phi_y + w_vec.z * phi_z);
+	}
 }
 
 void FireVoxel::update_temp() {
@@ -98,9 +100,9 @@ void Fire::build_map() {
 
 				FireVoxel *fv = new FireVoxel(-1, 0, 1.3, 1, pos);
 
-				map.emplace_back(fv);	// -1 because no fuel, 0 deg Celcius,
-																		// 1.3 kg/m^3 density, 1 atm
-																		// values are kinda made up for now cause units are hard			
+				// -1 because no fuel, 0 deg Celcius,
+				// 1.3 kg/m^3 density, 1 atm
+				// values are kinda made up for now cause units are hard			
 				
 				// fake a plane where phi == 0 for render testing
 				if (j == N / 2) {
@@ -112,6 +114,10 @@ void Fire::build_map() {
 					fuel.emplace_back(fv);
 					fv->update_temp();
 				}
+
+				fv->phi *= 1 + (((float) rand()) / RAND_MAX / 1000);
+
+				map.emplace_back(fv);
 			}
 		}
 	}
@@ -184,12 +190,12 @@ void Fire::build_map() {
 			FireVoxel* curr = map[i * N * N + k];
 			if ((SOURCE - curr->position).norm() <= FUEL_R * VOXEL_H) {
 				curr->temp = 200;
-				*(curr->u_down) = 5.0;
+				curr->fixed_phi = true;
+				*(curr->v_down) = -5.0;
 				source.emplace_back(curr);
 			}
 		}
 	}
-	// i==0 -> u_down = 
 }
 
 void Fire::simulate(double delta_t, FireParameters *fp) {
