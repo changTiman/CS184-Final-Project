@@ -7,7 +7,7 @@
 using namespace std;
 
 constexpr auto VOXEL_H = 0.05;									// arbitrary number, can change this;
-constexpr auto N = 120;											// also arbitrary;
+constexpr auto N = 30;											// also arbitrary;
 const auto SOURCE = Vector3D(N/2 * VOXEL_H, 0, N/2 * VOXEL_H);	// source of fuel
 constexpr auto FUEL_R = 15;										// radius of fuel source [points]
 
@@ -182,7 +182,6 @@ void Fire::build_map() {
 	for (int i = source_bot; i < source_top; i++) {
 		for (int k = source_bot; k < source_top; k++) {
 			FireVoxel* curr = map[i * N * N + k];
-			cout << curr->position << endl;
 			if ((SOURCE - curr->position).norm() <= FUEL_R * VOXEL_H) {
 				curr->temp = 200;
 				*(curr->u_down) = 5.0;
