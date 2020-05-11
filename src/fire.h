@@ -25,6 +25,8 @@ struct FireVoxel {
     double pres;        // pressure
 
     bool fixed_phi = false;
+    bool conditioned = false;
+    unsigned int set_num = UINT_MAX;
 
     // Position
     Vector3D position;
@@ -50,6 +52,9 @@ struct FireVoxel {
     Vector3D uf();
     Vector3D w(double s);   // implicit surface velocity
                             // not sure how to pass S efficiently b/c different structs
+
+    vector<FireVoxel *> get_neighbors();
+
     void update_phi(double delta_t, double s);
     void update_temp();
 };

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <math.h>
 #include <vector>
+#include <queue>
 
 #include "fire.h"
 
@@ -46,6 +47,18 @@ Vector3D FireVoxel::w(double s) {
 	return uf() + s * normal();
 }
 
+vector<FireVoxel*> FireVoxel::get_neighbors() {
+	vector<FireVoxel*> ret;
+	ret.emplace_back(i_down);
+	ret.emplace_back(i_up);
+	ret.emplace_back(j_down);
+	ret.emplace_back(j_up);
+	ret.emplace_back(k_down);
+	ret.emplace_back(k_up);
+
+	return ret;
+}
+
 void FireVoxel::update_phi(double delta_t, double s) {
 	// upwind differencing approach
 	Vector3D w_vec = w(s);
@@ -80,10 +93,14 @@ void FireVoxel::update_phi(double delta_t, double s) {
 		phi_z = 0;
 	}
 
+	conditioned = false;
 	prev_phi = phi;
 	if (!fixed_phi) {
 		phi = phi - delta_t * (w_vec.x * phi_x + w_vec.y * phi_y + w_vec.z * phi_z);
 	}
+	/*if ((phi > 0 && prev_phi > 0 && prev_phi - phi > 0) || (phi < 0 && prev_phi < 0 && prev_phi - phi < 0)) {
+		cout << "nice" << endl;
+	}*/
 }
 
 void FireVoxel::update_temp() {
@@ -200,15 +217,23 @@ void Fire::build_map() {
 				curr->temp = 200;
 				curr->fixed_phi = true;
 				*(curr->v_down) = 5.0;
+				*(curr->v_up) = 5.0;
 				source.emplace_back(curr);
 				fuel.emplace_back(curr);	// source is also fuel
-				implicit_surface.emplace_back(curr);
+
+				curr->j_up->phi = 0;
+				implicit_surface.emplace_back(curr->j_up);
+				//implicit_surface.emplace_back(curr);
 			}
 		}
 	}
 }
 
 void Fire::simulate(double delta_t, FireParameters *fp) {
+	
+	cout << "implicit: " << implicit_surface.size() << endl;
+	cout << "fuel: " << fuel.size() << endl;
+
 	// fuel propogation from implicit surface
 	// ISSUE: the velocities have to be synced up with delta_t because we aren't tracking individual particles
 	for (auto f : implicit_surface) {
@@ -229,6 +254,48 @@ void Fire::simulate(double delta_t, FireParameters *fp) {
 			curr = curr->j_up;
 		}
 	}
+	
+	// keep implicit surfadce well conditioned
+	// |delta_phi| == 1
+	queue<FireVoxel *> march;
+	//queue<FireVoxel *> neighbors;
+
+	for (auto f : implicit_surface) {
+		//f->phi = 0;
+		f->conditioned = true;
+		f->set_num = 0;
+		for (auto n : f->get_neighbors()) {
+			if (!n->conditioned) {
+				march.push(n);
+			}			
+		}
+	}
+
+	while (!march.empty()) {
+		FireVoxel* fv = march.front();
+		march.pop();
+
+		if (!fv->conditioned) {
+			unsigned int min_set = UINT_MAX;
+			FireVoxel* condition_fv;
+
+			for (auto n : fv->get_neighbors()) {
+				if (n->conditioned && n->set_num < min_set) {
+					condition_fv = n;
+					min_set = n->set_num;
+				}
+				else if (!n->conditioned) {
+					march.push(n);
+				}
+			}
+
+			// ensure |delta_phi| == 1 with min_set conditioned fvs
+			fv->phi = (fv->phi < condition_fv->phi) ? condition_fv->phi - 1 : condition_fv->phi + 1;
+			
+			fv->set_num = condition_fv->set_num + 1;
+			fv->conditioned = true;
+		}		
+	}
 
 	fuel.clear();
 	implicit_surface.clear();
@@ -248,5 +315,4 @@ void Fire::simulate(double delta_t, FireParameters *fp) {
 			}
 		}
 	}
-
 }
