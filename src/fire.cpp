@@ -11,7 +11,7 @@ using namespace std;
 constexpr auto VOXEL_H = 0.05;									// arbitrary number, can change this [meters]
 constexpr auto N = 30;											// also arbitrary;
 const auto SOURCE = Vector3D(N/2 * VOXEL_H, 0, N/2 * VOXEL_H);	// source of fuel
-constexpr auto FUEL_R = 15;										// radius of fuel source [points]
+constexpr auto FUEL_R = 5;										// radius of fuel source [points]
 constexpr auto S = 0.5;											// S as per paper [m/s]
 
 //FireVoxel::FireVoxel(double phi, double temp, double rho, double pres) {
@@ -95,9 +95,7 @@ void FireVoxel::calculate_phi(double delta_t, FireParameters *fp) {
 	}
 
 	conditioned = false;
-	if (!fixed_phi) {
-		pending_phi = phi - delta_t * (w_vec.x * phi_x + w_vec.y * phi_y + w_vec.z * phi_z);
-	}
+  pending_phi = phi - delta_t * (w_vec.x * phi_x + w_vec.y * phi_y + w_vec.z * phi_z);
 	/*if ((phi > 0 && prev_phi > 0 && prev_phi - phi > 0) || (phi < 0 && prev_phi < 0 && prev_phi - phi < 0)) {
 		cout << "nice" << endl;
 	}*/
@@ -105,7 +103,9 @@ void FireVoxel::calculate_phi(double delta_t, FireParameters *fp) {
 
 void FireVoxel::update_phi() {
   prev_phi = phi;
-  phi = pending_phi;
+  if (!fixed_phi) {
+    phi = pending_phi;
+  }
 }
 
 void FireVoxel::update_temp() {
@@ -221,7 +221,7 @@ void Fire::build_map() {
 				curr->phi = 1;
 				curr->temp = 200;
 				curr->fixed_phi = true;
-				*(curr->v_down) = 5.0;
+				*(curr->v_down) = 1.0;
 
 				// test velocity field init
 				//*(curr->u_down) = 2.0;
