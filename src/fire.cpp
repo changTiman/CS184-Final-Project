@@ -95,7 +95,7 @@ void FireVoxel::calculate_phi(double delta_t, FireParameters *fp) {
 	}
 
 	conditioned = false;
-  pending_phi = phi - delta_t * (w_vec.x * phi_x + w_vec.y * phi_y + w_vec.z * phi_z);
+	pending_phi = phi - delta_t * (w_vec.x * phi_x + w_vec.y * phi_y + w_vec.z * phi_z);
 	/*if ((phi > 0 && prev_phi > 0 && prev_phi - phi > 0) || (phi < 0 && prev_phi < 0 && prev_phi - phi < 0)) {
 		cout << "nice" << endl;
 	}*/
@@ -110,7 +110,7 @@ void FireVoxel::update_phi() {
 
 void FireVoxel::update_temp() {
 	// naive temperature based on linear distance from source
-	temp = (double) 200.0 - (position - SOURCE).norm() * 50;
+	temp = (double) 200.0 - (position - SOURCE).norm() * 400;
 }
 
 void Fire::build_map() {
@@ -221,7 +221,7 @@ void Fire::build_map() {
 				curr->phi = 1;
 				curr->temp = 200;
 				curr->fixed_phi = true;
-				*(curr->v_down) = 1.0;
+				*(curr->v_down) = 5.0;
 
 				// test velocity field init
 				//*(curr->u_down) = 2.0;
@@ -239,17 +239,21 @@ void Fire::build_map() {
 }
 
 void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> external_accelerations) {
+	cout << "implicit: " << implicit_surface.size() << endl;
+	cout << "fuel: " << fuel.size() << endl;
+	
 	// fuel propogation from implicit surface
 	// ISSUE: the velocities have to be synced up with delta_t because we aren't tracking individual particles
 	for (auto f : source) {
 		double mass = VOXEL_H * VOXEL_H * VOXEL_H * f->rho;
 		double acc = std::accumulate(external_accelerations.begin(), external_accelerations.end(), Vector3D()).y;
+		//double acc = -9.8;
 		double damping = 0.8;		// arbitrary damping value
 		//Vector3D uf = f->uf();	// this averages down velocity too fast
 
 		//bool s = std::find(source.begin(), source.end(), f) != source.end();
 		
-		double dist = damping * (*(f->v_down) * delta_t + 0.5 * acc * delta_t * delta_t);
+		/*double dist = damping * (*(f->v_down) * delta_t + 0.5 * acc * delta_t * delta_t);
 		FireVoxel *curr = f;
 
 		// update all voxels that will be passed through by a single fuel particle in delta_t
@@ -257,26 +261,30 @@ void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> externa
 			double next_vel = (damping) * (*(curr->v_down) + acc * delta_t);
 			*(curr->v_up) = next_vel;
 			curr = curr->j_up;
+		}*/
+
+		FireVoxel* curr = f;
+		double next_vel = (damping) * (*(curr->v_down) + acc * delta_t);
+
+		while (next_vel > 0) {			
+			*(curr->v_up) = next_vel;
+			curr = curr->j_up;
+			next_vel = (damping) * (next_vel + acc * delta_t);
 		}
 	}
 
+	condition_phi();
+
 	fuel.clear();
 	implicit_surface.clear();
+
   // Calculate new phi values
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < N; j++) {
       for (int k = 0; k < N; k++) {
         FireVoxel* fv = map[i * N * N + j * N + k];
         fv->calculate_phi(delta_t, fp);
-
-        double phi_eps = 0.1;
-        if (abs(fv->phi) < phi_eps) {
-          implicit_surface.emplace_back(fv);
-        }
-        else if (fv->phi > 0) {
-          fuel.emplace_back(fv);
-        }
-      }
+	  }
     }
   }
 	// Update phi values
@@ -285,11 +293,22 @@ void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> externa
 	    for (int k = 0; k < N; k++) {
 	      FireVoxel *fv = map[i * pow(N, 2) + j * N + k];
 	      fv->update_phi();
+
+		  /*double phi_eps = 0.0001;
+		  if (abs(fv->phi) < phi_eps) {
+			  implicit_surface.emplace_back(fv);
+		  }*/
+		  if (fv->phi == 0) {
+			  implicit_surface.emplace_back(fv);
+		  }
+		  else if (fv->phi > 0) {
+			  fuel.emplace_back(fv);
+			  fv->update_temp();
+		  }
 	    }
 	  }
 	}
-//  cout << "implicit: " << implicit_surface.size() << endl;
-//  cout << "fuel: " << fuel.size() << endl;
+
 }
 
 void Fire::condition_phi() {
@@ -329,6 +348,10 @@ void Fire::condition_phi() {
 
       // ensure |delta_phi| == 1 with min_set conditioned fvs
       fv->phi = (fv->phi < condition_fv->phi) ? condition_fv->phi - 1 : condition_fv->phi + 1;
+
+	  /*if (condition_fv->set_num != 0) {
+		  cout << "nice" << endl;
+	  }*/
 
       fv->set_num = condition_fv->set_num + 1;
       fv->conditioned = true;
