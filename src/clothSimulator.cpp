@@ -134,6 +134,9 @@ void ClothSimulator::load_shaders() {
     } else if (shader_name == "Phi") {
       hint = ShaderTypeHint::PHI;
       std::cout << "Type: Normal" << std::endl;
+    } else if (shader_name == "Velocity") {
+        hint = ShaderTypeHint::VELOCITY;
+        std::cout << "Type: Normal" << std::endl;
     } else {
         hint = ShaderTypeHint::PHONG;
       std::cout << "Type: Custom" << std::endl;
@@ -282,6 +285,9 @@ void ClothSimulator::drawContents() {
   case PHI:
     drawPhi(shader);
     break;
+  case VELOCITY:
+    drawVelocity(shader);
+    break;
   case NORMALS:
     drawNormals(shader);
     break;
@@ -353,6 +359,34 @@ void ClothSimulator::drawTemp(GLShader &shader) {
   shader.uploadAttrib("in_position", positions, false);
   shader.uploadAttrib("in_temp", temps, false);
   shader.drawArray(GL_POINTS, 0, fire_render.size());
+}
+
+void ClothSimulator::drawVelocity(GLShader& shader) {
+    // use uf
+    // color for speed and line dir for direction
+    vector<FireVoxel*> fire_render = fire->map;
+    MatrixXf positions(4, fire_render.size() * 2);
+    MatrixXf vel(1, fire_render.size());
+
+    for (int i = 0; i < fire_render.size(); i++) {
+        FireVoxel fv = *fire_render[i];
+        Vector3D p = fv.position;
+
+        Vector3D v = fv.uf();
+        if (v.x != 0 || v.y != 0 || v.z != 0) {
+            v.normalize();
+        }
+
+        Vector3D endpoint = p + v * 0.025;
+
+        positions.col(i * 2) << p.x, p.y, p.z, 1.0;
+        positions.col(i * 2 + 1) << endpoint.x, endpoint.y, endpoint.z, 1.0;
+        vel.col(i) << fv.uf().norm();
+    }
+
+    shader.uploadAttrib("in_position", positions, false);
+    shader.uploadAttrib("in_vel", vel, false);
+    shader.drawArray(GL_LINES, 0, fire_render.size() * 2);
 }
 
 void ClothSimulator::drawNormals(GLShader &shader) {

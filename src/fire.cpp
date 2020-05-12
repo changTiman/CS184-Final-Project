@@ -2,6 +2,7 @@
 #include <math.h>
 #include <vector>
 #include <numeric>
+#include <queue>
 
 #include "fire.h"
 
@@ -47,6 +48,18 @@ Vector3D FireVoxel::w(double s) {
 	return u + s * n;
 }
 
+vector<FireVoxel*> FireVoxel::get_neighbors() {
+	vector<FireVoxel*> ret;
+	ret.emplace_back(i_down);
+	ret.emplace_back(i_up);
+	ret.emplace_back(j_down);
+	ret.emplace_back(j_up);
+	ret.emplace_back(k_down);
+	ret.emplace_back(k_up);
+
+	return ret;
+}
+
 void FireVoxel::update_phi(double delta_t, FireParameters *fp) {
 	// upwind differencing approach
 	Vector3D w_vec = w(fp->S);
@@ -81,10 +94,14 @@ void FireVoxel::update_phi(double delta_t, FireParameters *fp) {
 		phi_z = 0;
 	}
 
+	conditioned = false;
 	prev_phi = phi;
 	if (!fixed_phi) {
 		phi = phi - delta_t * (w_vec.x * phi_x + w_vec.y * phi_y + w_vec.z * phi_z);
 	}
+	/*if ((phi > 0 && prev_phi > 0 && prev_phi - phi > 0) || (phi < 0 && prev_phi < 0 && prev_phi - phi < 0)) {
+		cout << "nice" << endl;
+	}*/
 }
 
 void FireVoxel::update_temp() {
@@ -201,9 +218,17 @@ void Fire::build_map() {
 				curr->temp = 200;
 				curr->fixed_phi = true;
 				*(curr->v_down) = 5.0;
+
+				// test velocity field init
+				//*(curr->u_down) = 2.0;
+
+				*(curr->v_up) = 5.0;
 				source.emplace_back(curr);
 				fuel.emplace_back(curr);	// source is also fuel
-				implicit_surface.emplace_back(curr);
+
+				curr->j_up->phi = 0;
+				implicit_surface.emplace_back(curr->j_up);
+				//implicit_surface.emplace_back(curr);
 			}
 		}
 	}
@@ -224,11 +249,53 @@ void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> externa
 		FireVoxel *curr = f;
 
 		// update all voxels that will be passed through by a single fuel particle in delta_t
-		for (int j = 0; j < floor(dist / VOXEL_H); j++) {
+		for (int j = f->position.y / VOXEL_H; j < f->position.y / VOXEL_H + floor(dist / VOXEL_H); j++) {
 			double next_vel = (damping) * (*(curr->v_down) + acc * delta_t);
 			*(curr->v_up) = next_vel;
 			curr = curr->j_up;
 		}
+	}
+	
+	// keep implicit surfadce well conditioned
+	// |delta_phi| == 1
+	queue<FireVoxel *> march;
+	//queue<FireVoxel *> neighbors;
+
+	for (auto f : implicit_surface) {
+		//f->phi = 0;
+		f->conditioned = true;
+		f->set_num = 0;
+		for (auto n : f->get_neighbors()) {
+			if (!n->conditioned) {
+				march.push(n);
+			}			
+		}
+	}
+
+	while (!march.empty()) {
+		FireVoxel* fv = march.front();
+		march.pop();
+
+		if (!fv->conditioned) {
+			unsigned int min_set = UINT_MAX;
+			FireVoxel* condition_fv;
+
+			for (auto n : fv->get_neighbors()) {
+				if (n->conditioned && n->set_num < min_set) {
+					condition_fv = n;
+					min_set = n->set_num;
+				}
+				else if (!n->conditioned) {
+					march.push(n);
+				}
+			}
+
+			// ensure |delta_phi| == 1 with min_set conditioned fvs
+			fv->phi = (fv->phi < condition_fv->phi) ? condition_fv->phi - 1 : condition_fv->phi + 1;
+			
+			fv->set_num = condition_fv->set_num + 1;
+			fv->conditioned = true;
+		}		
 	}
 
 	fuel.clear();
@@ -240,7 +307,7 @@ void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> externa
 				FireVoxel* fv = map[i * N * N + j * N + k];
 				fv->update_phi(delta_t, fp);
 
-				if (fv->phi == 0) {
+				if (fv->phi > -0.1 && fv->phi < 0.1) {
 					implicit_surface.emplace_back(fv);
 				}
 				else if (fv->phi > 0) {
@@ -249,7 +316,8 @@ void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> externa
 			}
 		}
 	}
-
+  cout << "implicit: " << implicit_surface.size() << endl;
+  cout << "fuel: " << fuel.size() << endl;
 }
 
 void Fire::reset() {
