@@ -573,6 +573,7 @@ bool ClothSimulator::keyCallbackEvent(int key, int scancode, int action,
     case 'r':
     case 'R':
       cloth->reset();
+      fire->reset();
       break;
     case ' ':
       resetCamera();

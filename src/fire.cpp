@@ -251,3 +251,12 @@ void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> externa
 	}
 
 }
+
+void Fire::reset() {
+  map.clear();
+  implicit_surface.clear();
+  fuel.clear();
+  source.clear();
+  cout<<"Reset Fire"<<endl;
+  build_map();
+}

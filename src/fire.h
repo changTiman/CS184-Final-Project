@@ -83,5 +83,6 @@ struct Fire {
 
     void build_map();
     void simulate(double delta_t, FireParameters *fp, vector<Vector3D> external_accelerations);
+    void reset();
 };
 #endif /* FIRE_H */
