@@ -250,7 +250,7 @@ void ClothSimulator::drawContents() {
     vector<Vector3D> external_accelerations = {gravity};
 
     for (int i = 0; i < simulation_steps; i++) {
-		fire->simulate(0.1, fp);
+		  fire->simulate(0.1, fp, external_accelerations);
     }
   }
 

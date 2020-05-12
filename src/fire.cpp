@@ -1,6 +1,7 @@
 #include <iostream>
 #include <math.h>
 #include <vector>
+#include <numeric>
 
 #include "fire.h"
 
@@ -46,9 +47,9 @@ Vector3D FireVoxel::w(double s) {
 	return uf() + s * normal();
 }
 
-void FireVoxel::update_phi(double delta_t, double s) {
+void FireVoxel::update_phi(double delta_t, FireParameters *fp) {
 	// upwind differencing approach
-	Vector3D w_vec = w(s);
+	Vector3D w_vec = w(fp->S);
 	double phi_x, phi_y, phi_z;
 	if (w_vec.x > 0) {
 		phi_x = (phi - i_down->phi) / VOXEL_H;
@@ -208,12 +209,12 @@ void Fire::build_map() {
 	}
 }
 
-void Fire::simulate(double delta_t, FireParameters *fp) {
+void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> external_accelerations) {
 	// fuel propogation from implicit surface
 	// ISSUE: the velocities have to be synced up with delta_t because we aren't tracking individual particles
 	for (auto f : implicit_surface) {
 		double mass = VOXEL_H * VOXEL_H * VOXEL_H * f->rho;
-		double acc = -9.8;			// hard-coded gravity (not sure how to use external acelerations vector)
+		double acc = std::accumulate(external_accelerations.begin(), external_accelerations.end(), Vector3D()).y;
 		double damping = 0.8;		// arbitrary damping value
 		//Vector3D uf = f->uf();	// this averages down velocity too fast
 
@@ -237,7 +238,7 @@ void Fire::simulate(double delta_t, FireParameters *fp) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
 				FireVoxel* fv = map[i * N * N + j * N + k];
-				fv->update_phi(delta_t, 0.1);
+				fv->update_phi(delta_t, fp);
 
 				if (fv->phi == 0) {
 					implicit_surface.emplace_back(fv);

@@ -10,6 +10,8 @@
 using namespace CGL;
 using namespace std;
 
+class FireParameters;
+
 struct FireVoxel {
     FireVoxel() {}
     FireVoxel(double phi, double temp, double rho, double pres, Vector3D pos) : phi(phi), temp(temp), rho(rho), pres(pres), position(pos), prev_phi(phi) {}
@@ -37,7 +39,7 @@ struct FireVoxel {
     double *w_down;  // k - 1/2 velocity
     double *w_up;    // k - 1/2 velocity
 
-    // FireParameter Pointers for normal solving (maaybe there is a better way to implement this)
+    // FireParameter Pointers for normal solving (maybe there is a better way to implement this)
     // kinda like a mesh now
     FireVoxel *i_down; // i - 1 param
     FireVoxel *i_up;   // i + 1 param
@@ -50,12 +52,14 @@ struct FireVoxel {
     Vector3D uf();
     Vector3D w(double s);   // implicit surface velocity
                             // not sure how to pass S efficiently b/c different structs
-    void update_phi(double delta_t, double s);
+    void update_phi(double delta_t, FireParameters *fp);
     void update_temp();
 };
 
 struct FireParameters {
-  FireParameters() {}
+  FireParameters() {
+    S = 0.1;
+  }
   FireParameters(double S) : S(S) {}
   ~FireParameters() {}
 
@@ -78,6 +82,6 @@ struct Fire {
     vector<FireVoxel *> source;
 
     void build_map();
-    void simulate(double delta_t, FireParameters *fp);
+    void simulate(double delta_t, FireParameters *fp, vector<Vector3D> external_accelerations);
 };
 #endif /* FIRE_H */
