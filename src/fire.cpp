@@ -241,7 +241,7 @@ void Fire::build_map() {
 void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> external_accelerations) {
 	// fuel propogation from implicit surface
 	// ISSUE: the velocities have to be synced up with delta_t because we aren't tracking individual particles
-	for (auto f : implicit_surface) {
+	for (auto f : source) {
 		double mass = VOXEL_H * VOXEL_H * VOXEL_H * f->rho;
 		double acc = std::accumulate(external_accelerations.begin(), external_accelerations.end(), Vector3D()).y;
 		double damping = 0.8;		// arbitrary damping value
@@ -253,7 +253,7 @@ void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> externa
 		FireVoxel *curr = f;
 
 		// update all voxels that will be passed through by a single fuel particle in delta_t
-		for (int j = f->position.y / VOXEL_H; j < f->position.y / VOXEL_H + floor(dist / VOXEL_H); j++) {
+		for (int j = 0; j < floor(dist / VOXEL_H); j++) {
 			double next_vel = (damping) * (*(curr->v_down) + acc * delta_t);
 			*(curr->v_up) = next_vel;
 			curr = curr->j_up;
