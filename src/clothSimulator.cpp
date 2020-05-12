@@ -255,7 +255,7 @@ void ClothSimulator::drawContents() {
     for (int i = 0; i < simulation_steps; i++) {
 		  fire->simulate(0.1, fp, external_accelerations);
 		  int condition_freq = 10;
-		  if (i % 10 == 0) {
+		  if (i % condition_freq == 0) {
 		    fire->condition_phi();
 		  }
     }
