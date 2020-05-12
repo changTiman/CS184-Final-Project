@@ -263,14 +263,22 @@ void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> externa
 	fuel.clear();
 	implicit_surface.clear();
   // Calculate new phi values
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			for (int k = 0; k < N; k++) {
-				FireVoxel* fv = map[i * N * N + j * N + k];
-				fv->calculate_phi(delta_t, fp);
-			}
-		}
-	}
+  for (int i = 0; i < N; i++) {
+    for (int j = 0; j < N; j++) {
+      for (int k = 0; k < N; k++) {
+        FireVoxel* fv = map[i * N * N + j * N + k];
+        fv->calculate_phi(delta_t, fp);
+
+        double phi_eps = 0.1;
+        if (abs(fv->phi) < phi_eps) {
+          implicit_surface.emplace_back(fv);
+        }
+        else if (fv->phi > 0) {
+          fuel.emplace_back(fv);
+        }
+      }
+    }
+  }
 	// Update phi values
 	for (int i = 0; i < N; i++) {
 	  for (int j = 0; j < N; j++) {
