@@ -21,6 +21,7 @@ struct FireVoxel {
     double phi;         // implicit surface definition:  
                         // positive in the region of space filled with fuel,
                         // negative elsewhere, and zero at the reaction zone
+    double pending_phi; // Phi to update to after all calculations are complete
     double prev_phi;    // phi at last time step
     double temp;        // temperature
     double rho;         // density
@@ -55,7 +56,8 @@ struct FireVoxel {
     Vector3D w(double s);   // implicit surface velocity
                             // not sure how to pass S efficiently b/c different structs
 
-    void update_phi(double delta_t, FireParameters *fp);
+    void calculate_phi(double delta_t, FireParameters *fp);
+    void update_phi();
 
     vector<FireVoxel *> get_neighbors();
     void update_temp();
@@ -63,7 +65,7 @@ struct FireVoxel {
 
 struct FireParameters {
   FireParameters() {
-    S = 0.1;
+    S = 0.5;
   }
   FireParameters(double S) : S(S) {}
   ~FireParameters() {}
@@ -88,6 +90,7 @@ struct Fire {
 
     void build_map();
     void simulate(double delta_t, FireParameters *fp, vector<Vector3D> external_accelerations);
+    void condition_phi();
     void reset();
 };
 #endif /* FIRE_H */

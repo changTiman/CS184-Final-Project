@@ -60,7 +60,7 @@ vector<FireVoxel*> FireVoxel::get_neighbors() {
 	return ret;
 }
 
-void FireVoxel::update_phi(double delta_t, FireParameters *fp) {
+void FireVoxel::calculate_phi(double delta_t, FireParameters *fp) {
 	// upwind differencing approach
 	Vector3D w_vec = w(fp->S);
 	double phi_x, phi_y, phi_z;
@@ -95,13 +95,17 @@ void FireVoxel::update_phi(double delta_t, FireParameters *fp) {
 	}
 
 	conditioned = false;
-	prev_phi = phi;
 	if (!fixed_phi) {
-		phi = phi - delta_t * (w_vec.x * phi_x + w_vec.y * phi_y + w_vec.z * phi_z);
+		pending_phi = phi - delta_t * (w_vec.x * phi_x + w_vec.y * phi_y + w_vec.z * phi_z);
 	}
 	/*if ((phi > 0 && prev_phi > 0 && prev_phi - phi > 0) || (phi < 0 && prev_phi < 0 && prev_phi - phi < 0)) {
 		cout << "nice" << endl;
 	}*/
+}
+
+void FireVoxel::update_phi() {
+  prev_phi = phi;
+  phi = pending_phi;
 }
 
 void FireVoxel::update_temp() {
@@ -139,7 +143,7 @@ void Fire::build_map() {
 					fv->update_temp();
 				}*/
 
-				fv->phi *= 1 + (((float) rand()) / RAND_MAX / 1000);
+//				fv->phi *= 1 + (((float) rand()) / RAND_MAX / 1000);
 
 				map.emplace_back(fv);
 
@@ -255,69 +259,73 @@ void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> externa
 			curr = curr->j_up;
 		}
 	}
-	
-	// keep implicit surfadce well conditioned
-	// |delta_phi| == 1
-	queue<FireVoxel *> march;
-	//queue<FireVoxel *> neighbors;
-
-	for (auto f : implicit_surface) {
-		//f->phi = 0;
-		f->conditioned = true;
-		f->set_num = 0;
-		for (auto n : f->get_neighbors()) {
-			if (!n->conditioned) {
-				march.push(n);
-			}			
-		}
-	}
-
-	while (!march.empty()) {
-		FireVoxel* fv = march.front();
-		march.pop();
-
-		if (!fv->conditioned) {
-			unsigned int min_set = UINT_MAX;
-			FireVoxel* condition_fv;
-
-			for (auto n : fv->get_neighbors()) {
-				if (n->conditioned && n->set_num < min_set) {
-					condition_fv = n;
-					min_set = n->set_num;
-				}
-				else if (!n->conditioned) {
-					march.push(n);
-				}
-			}
-
-			// ensure |delta_phi| == 1 with min_set conditioned fvs
-			fv->phi = (fv->phi < condition_fv->phi) ? condition_fv->phi - 1 : condition_fv->phi + 1;
-			
-			fv->set_num = condition_fv->set_num + 1;
-			fv->conditioned = true;
-		}		
-	}
 
 	fuel.clear();
 	implicit_surface.clear();
-
+  // Calculate new phi values
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
 				FireVoxel* fv = map[i * N * N + j * N + k];
-				fv->update_phi(delta_t, fp);
-
-				if (fv->phi > -0.1 && fv->phi < 0.1) {
-					implicit_surface.emplace_back(fv);
-				}
-				else if (fv->phi > 0) {
-					fuel.emplace_back(fv);
-				}
+				fv->calculate_phi(delta_t, fp);
 			}
 		}
 	}
-  cout << "implicit: " << implicit_surface.size() << endl;
-  cout << "fuel: " << fuel.size() << endl;
+	// Update phi values
+	for (int i = 0; i < N; i++) {
+	  for (int j = 0; j < N; j++) {
+	    for (int k = 0; k < N; k++) {
+	      FireVoxel *fv = map[i * pow(N, 2) + j * N + k];
+	      fv->update_phi();
+	    }
+	  }
+	}
+//  cout << "implicit: " << implicit_surface.size() << endl;
+//  cout << "fuel: " << fuel.size() << endl;
+}
+
+void Fire::condition_phi() {
+  // keep implicit surfadce well conditioned
+  // |delta_phi| == 1
+  queue<FireVoxel *> march;
+  //queue<FireVoxel *> neighbors;
+
+  for (auto f : implicit_surface) {
+    //f->phi = 0;
+    f->conditioned = true;
+    f->set_num = 0;
+    for (auto n : f->get_neighbors()) {
+      if (!n->conditioned) {
+        march.push(n);
+      }
+    }
+  }
+
+  while (!march.empty()) {
+    FireVoxel* fv = march.front();
+    march.pop();
+
+    if (!fv->conditioned) {
+      unsigned int min_set = UINT_MAX;
+      FireVoxel* condition_fv;
+
+      for (auto n : fv->get_neighbors()) {
+        if (n->conditioned && n->set_num < min_set) {
+          condition_fv = n;
+          min_set = n->set_num;
+        }
+        else if (!n->conditioned) {
+          march.push(n);
+        }
+      }
+
+      // ensure |delta_phi| == 1 with min_set conditioned fvs
+      fv->phi = (fv->phi < condition_fv->phi) ? condition_fv->phi - 1 : condition_fv->phi + 1;
+
+      fv->set_num = condition_fv->set_num + 1;
+      fv->conditioned = true;
+    }
+  }
 }
 
 void Fire::reset() {
