@@ -366,7 +366,7 @@ void ClothSimulator::drawVelocity(GLShader& shader) {
     // color for speed and line dir for direction
     vector<FireVoxel*> fire_render = fire->map;
     MatrixXf positions(4, fire_render.size() * 2);
-    MatrixXf vel(1, fire_render.size());
+    MatrixXf vel(1, fire_render.size() * 2);
 
     for (int i = 0; i < fire_render.size(); i++) {
         FireVoxel fv = *fire_render[i];
@@ -381,7 +381,8 @@ void ClothSimulator::drawVelocity(GLShader& shader) {
 
         positions.col(i * 2) << p.x, p.y, p.z, 1.0;
         positions.col(i * 2 + 1) << endpoint.x, endpoint.y, endpoint.z, 1.0;
-        vel.col(i) << fv.uf().norm();
+        vel.col(i * 2) << fv.uf().norm();
+        vel.col(i * 2 + 1) << fv.uf().norm();
     }
 
     shader.uploadAttrib("in_position", positions, false);
