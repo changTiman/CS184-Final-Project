@@ -288,6 +288,11 @@ void GLShader::drawArray(int type, uint32_t offset, uint32_t count) {
     if(type == GL_POINTS)
         glPointSize(2.0f);
 
+    if (type == GL_LINES) {
+        glEnable(GL_LINE_SMOOTH);
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+    }
+
     glDrawArrays(type, offset, count);
 }
 

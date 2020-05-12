@@ -217,6 +217,10 @@ void Fire::build_map() {
 				curr->temp = 200;
 				curr->fixed_phi = true;
 				*(curr->v_down) = 5.0;
+
+				// test velocity field init
+				//*(curr->u_down) = 2.0;
+
 				*(curr->v_up) = 5.0;
 				source.emplace_back(curr);
 				fuel.emplace_back(curr);	// source is also fuel
@@ -230,10 +234,6 @@ void Fire::build_map() {
 }
 
 void Fire::simulate(double delta_t, FireParameters *fp) {
-	
-	cout << "implicit: " << implicit_surface.size() << endl;
-	cout << "fuel: " << fuel.size() << endl;
-
 	// fuel propogation from implicit surface
 	// ISSUE: the velocities have to be synced up with delta_t because we aren't tracking individual particles
 	for (auto f : implicit_surface) {
@@ -248,7 +248,7 @@ void Fire::simulate(double delta_t, FireParameters *fp) {
 		FireVoxel *curr = f;
 
 		// update all voxels that will be passed through by a single fuel particle in delta_t
-		for (int j = 0; j < floor(dist / VOXEL_H); j++) {
+		for (int j = f->position.y / VOXEL_H; j < f->position.y / VOXEL_H + floor(dist / VOXEL_H); j++) {
 			double next_vel = (damping) * (*(curr->v_down) + acc * delta_t);
 			*(curr->v_up) = next_vel;
 			curr = curr->j_up;
@@ -306,7 +306,7 @@ void Fire::simulate(double delta_t, FireParameters *fp) {
 				FireVoxel* fv = map[i * N * N + j * N + k];
 				fv->update_phi(delta_t, 0.1);
 
-				if (fv->phi == 0) {
+				if (fv->phi > -0.1 && fv->phi < 0.1) {
 					implicit_surface.emplace_back(fv);
 				}
 				else if (fv->phi > 0) {
@@ -315,4 +315,6 @@ void Fire::simulate(double delta_t, FireParameters *fp) {
 			}
 		}
 	}
+	cout << "implicit: " << implicit_surface.size() << endl;
+	cout << "fuel: " << fuel.size() << endl;
 }

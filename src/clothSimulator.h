@@ -11,7 +11,7 @@
 using namespace nanogui;
 
 struct UserShader;
-enum ShaderTypeHint { WIREFRAME = 0, NORMALS = 1, PHONG = 2, TEMP = 3, PHI = 4 };
+enum ShaderTypeHint { WIREFRAME = 0, NORMALS = 1, PHONG = 2, TEMP = 3, PHI = 4, VELOCITY = 5};
 
 class ClothSimulator {
 public:
@@ -41,6 +41,7 @@ private:
   virtual void initGUI(Screen *screen);
   void drawTemp(GLShader &shader);
   void drawPhi(GLShader &shader);
+  void drawVelocity(GLShader& shader);
 
   void drawNormals(GLShader &shader);
   void drawPhong(GLShader &shader);
