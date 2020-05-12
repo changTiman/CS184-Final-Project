@@ -10,7 +10,7 @@ in float v_temp;
 out vec4 out_color;
 
 vec3 white = vec3(1, 1, 1);
-vec3 blue = vec3(0, 0, 1);
+vec3 green = vec3(0, 1, 0);
 vec3 red = vec3(1, 0, 0);
 
 void main() {
@@ -19,7 +19,7 @@ void main() {
   if (v_phi > 2) {
       out_color = vec4(red, 1.0);
   } else if (v_phi > 0) {
-	  out_color = vec4(blue, 1.0);
+	  out_color = vec4(green, 1.0);
   } else {
 	  out_color = vec4(white, 1.0);
   }

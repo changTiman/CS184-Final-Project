@@ -9,7 +9,7 @@ in float v_temp;
 out vec4 out_color;
 
 vec3 white = vec3(1, 1, 1);
-vec3 blue = vec3(0, 0, 1);
+vec3 blue = vec3(0, 1, 0);
 
 void main() {
   //out_color = u_color;
