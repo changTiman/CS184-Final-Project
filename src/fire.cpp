@@ -44,7 +44,7 @@ Vector3D FireVoxel::uf() {
 Vector3D FireVoxel::w(double s) {
 	Vector3D u = uf();
 	Vector3D n = normal();
-	return uf() + s * normal();
+	return u + s * n;
 }
 
 void FireVoxel::update_phi(double delta_t, FireParameters *fp) {
