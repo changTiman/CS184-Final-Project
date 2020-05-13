@@ -15,7 +15,7 @@
     font-family: 'Source Sans Pro', sans-serif;
   }
 </style>
-<title>CS 184 Project Proposal</title>
+<title>CS 184 Final Project | FireSim</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 <link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
 </head>
@@ -24,89 +24,65 @@
 <body>
 
 <h1 align="middle">CS 184 Final Project</h1>
-<h1 align="middle">Rubens' Tube Simulation</h1>
+<h1 align="middle">Fire Simulation</h1>
 <h2 align="middle">Coby Zhong, Robert Quitt, Timothy Chang</h2>
 
 <br><br>
 
     <div>
 
-        <h2 align="middle">Summary</h2>
+        <h2 align="middle">Abstract</h2>
         <p>
-            Develop a physical simulation of audio signals in the form of a <a href="https://en.wikipedia.org/wiki/Rubens'_tube">Rubens’ Tube</a> that outputs flame as a standing wave for specific frequencies. The simulation will take in an arbitrary audio signal and 
-            actuate a physical flame system based upon the sound waves and pressure inputted.
+            The vision for this project began as a simulation involving fire but with additional control elements determined by audio frequencies to make a rubens tube. However, the implementation of fire turned out to be more difficult than first anticipated, so getting a working fire simulation became the priority. The fire simulation was built to run in real time using the clothsim framework provided by cs184 course staff. The project uses a physical based model integrated with OpenGL for visualization. Even this turned out to be a challenge to implement, so to meet the project deadline, the project switched to using Blender for the final simulation deliverable.
         </p>
 
-        <h2 align="middle">Problem Description</h2>
+        <h2 align="middle">Technical Approach</h2>
 
         <p>
-            Most graphics applications are isolated from sound contained within the environment being rendered. The goal of the Rubens’ Tube simulation is to resolve this divide by a simple visual frequency response 
-            to sounds that could be a part of the environment. Since the Rubens’ Tube is a purely physical system it will have to be simulated, requiring an accurate simulation of sound waves and pressure, which is 
-            not typically simulated within graphical applications, although some similarities can be made to light that is also a wave. The audio signal will have to be transformed from a signal into physical inputs 
-            into the system as well as pipelining the signals into a fire that is outputted from the Rubens’ Tube.
+            The model built on the clothsim framework, following closely to the implementation detailed in the Stanford graphics paper referenced below [Nguyen et al. 2002]. The implementation works by tracking the physical aspects of the fire, stored in a voxel grid data structure. The physical characteristics are stored in a std::vector of FireVoxel structs within the fire.h file. The fire.h struct contains the implicit surface, temperature, density, and pressure at the centers and additional fluid velocity components at each face of the FireVoxels. Additional data structures are created within the Fire struct to track the map of the voxel grid as well as which FireVoxels are part of the implicit_surface, fuel, and source respectively.
         </p>
 
         <p>
-            To accomplish the above, we were considering dividing the audio signal into intervals and running a Fourier transform on each interval to derive the constituent frequencies. Once we have the frequencies 
-            and their corresponding amplitudes, we will then be able to take frequencies above a certain threshold and determine what the height of each flame will be for that interval. 
-        </p>
-
-        <h2 align="middle">Goals and Deliverables</h2>
-
-        <p>
-            Goal: Create a system which converts an audio file into a visual representation in the form of a Rubens’ Tube.
+            The initial part of the fire consists of a blue core where the liquid fuel reacts and begins to burn. This was implemented using a level set method, with the scalar implicit surface phi, defining the sets. Phi is a scalar field defined to be positive in regions that contain fuel, zero at the reaction zone, and negative elsewhere. The motion of the reaction zone is computed for each individual voxel by taking account of the fuel velocity as well as the partial derivatives, phi_x, phi_y, and phi_z, and tracking the direction in which the reaction consumes the fuel. This movement is tracked within the function update_phi that prepares a pending_phi so as to not disturb further phi calculations within the same timestep. Additionally, as per the paper, conditioning on phi is needed to constrain phi so that magnitude of delta_phi is equal to 1. By using a queue data structure, condition_phi marches out from the implicit surface, whose set if fixed, to ensure the outer sets in the onion are conditioned properly from center-out.
         </p>
 
         <p>
-            We aim to answer the question: what would an ideal Rubens’ Tube look like, and can that be accomplished in real time?
-        </p>
-
-        <h3>Required Deliverables</h3>
-
-        <ol type="1">
-            <li>A sequence of images generated by our program which, when put into video editing software alongside the input audio file, will result in a video of a Rubens’ Tube reacting to the audio file
-                <ol type="a">
-                    <li>Interesting performance metric: ratio of processing time / audio file length</li>
-                </ol>
-            </li>
-            <li>To demonstrate, we will provide a video for a pure frequency as well as a more natural audio clip</li>
-        </ol>
-
-        <h3>Stretch Deliverables</h3>
-
-        <ol type="1">
-            <li>Executable file available publicly which takes any audio file as input and outputs an image sequence for said audio file</li>
-            <li>Realtime rendering for incoming signal</li>
-        </ol>
-
-        <h2 align="middle">Schedule</h2>
-
-        <p>
-            1st week - Reading audio file, decomposing into intervals, decomposing intervals into frequencies and amplitudes
+            During the process of making our simulation system, we ran into an issue where we were observing very erratic behavior of the value fields. After some digging, we discovered that we were updating phi values that other phi calculations were relying on, thus resulting in incorrect behavior. Much like in our mesh editor project, we solved this problem by storing the value to update to first, then doing a second pass to update the actual values.
         </p>
 
         <p>
-            2nd week - Create rendering environment for Rubens’ Tube 
+            Unfortunately, however, due to the complexity of the fluid dynamics involved, we found that we would not be able to meet the deadline continuing with our previous approach. Thus, we turned to working within Blender to mimic the paper’s approach to fire rendering. First, we set up an inflow circle which would correlate to the fuel injection surface described in the Stanford paper. We then defined a cube as the domain of the simulation which corresponded to the 3D voxel grid of the paper. Finally, since Blender has built-in fluid simulation abilities, we were able to utilize those to easily simulate the equations described in the paper to achieve our final results.
         </p>
 
         <p>
-            3rd week - Create fire simulation system which will take height as an input
+            In general, the lesson would probably be to utilize existing infrastructure as much as possible. Although having a solid understanding of the underlying simulation techniques is certainly helpful, it speaks volumes that what took us 3 weeks to fail at doing took us 1 day in Blender to achieve.
         </p>
 
-        <p>
-            4th week - Combine discrete parts into final deliverable, create videos
-        </p>
+        <h2 align="middle">Results</h2>
 
-        <h2 align="middle">Resources</h2>
+        <iframe width="960" height="560" src="https://www.youtube.com/embed/_S5TYNEgRx8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+        <img src="https://i.imgur.com/29EfUiM.jpg" style="width: 80%; max-height: 60%">
+
+        <h2 align="middle">References</h2>
 
         <ul>
             <li>
                 <a href="http://graphics.ucsd.edu/~henrik/papers/fire/fire.pdf">http://graphics.ucsd.edu/~henrik/papers/fire/fire.pdf</a>
             </li>
             <li>
-                <a href="https://en.wikipedia.org/wiki/Standing_wave">Wikipedia - Standing waves</a>
+                <a href="http://graphics.ucsd.edu/~henrik/papers/smoke/smoke.pdf">http://graphics.ucsd.edu/~henrik/papers/smoke/smoke.pdf</a>
             </li>
-          </ul>
+        </ul>
+
+        <h2 align="middle">Contributions</h2>
+        <p>
+            Coby: Writeups, export to blender, blender rendering, bug fixing<br>
+            <br>
+            Robert: simulation code, update_phi, phi visualization<br>
+            <br>
+            Timothy: starter code for fire.h and fire.cpp, condition_phi, velocity field and implicit surface visualizations<br>
+        </p>
 
     </div></body>
 </html>
