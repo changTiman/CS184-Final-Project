@@ -137,6 +137,9 @@ void ClothSimulator::load_shaders() {
     } else if (shader_name == "Velocity") {
         hint = ShaderTypeHint::VELOCITY;
         std::cout << "Type: Normal" << std::endl;
+    } else if (shader_name == "ISurface") {
+        hint = ShaderTypeHint::ISURFACE;
+        std::cout << "Type: Normal" << std::endl;
     } else {
         hint = ShaderTypeHint::PHONG;
       std::cout << "Type: Custom" << std::endl;
@@ -292,6 +295,9 @@ void ClothSimulator::drawContents() {
   case VELOCITY:
     drawVelocity(shader);
     break;
+  case ISURFACE:
+    drawISurface(shader);
+    break;
   case NORMALS:
     drawNormals(shader);
     break;
@@ -392,6 +398,21 @@ void ClothSimulator::drawVelocity(GLShader& shader) {
     shader.uploadAttrib("in_position", positions, false);
     shader.uploadAttrib("in_vel", vel, false);
     shader.drawArray(GL_LINES, 0, fire_render.size() * 2);
+}
+
+void ClothSimulator::drawISurface(GLShader& shader) {
+    vector<FireVoxel*> fire_render = fire->implicit_surface;
+    MatrixXf positions(4, fire_render.size());
+
+    for (int i = 0; i < fire_render.size(); i++) {
+        FireVoxel fv = *fire_render[i];
+        Vector3D p = fv.position;
+
+        positions.col(i) << p.x, p.y, p.z, 1.0;
+    }
+
+    shader.uploadAttrib("in_position", positions, false);
+    shader.drawArray(GL_POINTS, 0, fire_render.size());
 }
 
 void ClothSimulator::drawNormals(GLShader &shader) {

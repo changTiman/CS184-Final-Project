@@ -239,9 +239,6 @@ void Fire::build_map() {
 }
 
 void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> external_accelerations) {
-	cout << "implicit: " << implicit_surface.size() << endl;
-	cout << "fuel: " << fuel.size() << endl;
-	
 	// fuel propogation from implicit surface
 	// ISSUE: the velocities have to be synced up with delta_t because we aren't tracking individual particles
 	for (auto f : source) {
@@ -273,42 +270,43 @@ void Fire::simulate(double delta_t, FireParameters *fp, vector<Vector3D> externa
 		}
 	}
 
-	condition_phi();
-
 	fuel.clear();
 	implicit_surface.clear();
 
-  // Calculate new phi values
-  for (int i = 0; i < N; i++) {
-    for (int j = 0; j < N; j++) {
-      for (int k = 0; k < N; k++) {
-        FireVoxel* fv = map[i * N * N + j * N + k];
-        fv->calculate_phi(delta_t, fp);
-	  }
-    }
-  }
-	// Update phi values
+	// Calculate new phi values
 	for (int i = 0; i < N; i++) {
-	  for (int j = 0; j < N; j++) {
-	    for (int k = 0; k < N; k++) {
-	      FireVoxel *fv = map[i * pow(N, 2) + j * N + k];
-	      fv->update_phi();
-
-		  /*double phi_eps = 0.0001;
-		  if (abs(fv->phi) < phi_eps) {
-			  implicit_surface.emplace_back(fv);
-		  }*/
-		  if (fv->phi == 0) {
-			  implicit_surface.emplace_back(fv);
-		  }
-		  else if (fv->phi > 0) {
-			  fuel.emplace_back(fv);
-			  fv->update_temp();
-		  }
-	    }
-	  }
+		for (int j = 0; j < N; j++) {
+			for (int k = 0; k < N; k++) {
+				FireVoxel* fv = map[i * N * N + j * N + k];
+				fv->calculate_phi(delta_t, fp);
+			}
+		}
 	}
 
+	// Update phi values
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			for (int k = 0; k < N; k++) {
+				FireVoxel* fv = map[i * pow(N, 2) + j * N + k];
+				fv->update_phi();
+
+				double phi_eps = 0.1;
+				if (abs(fv->phi) < phi_eps) {
+					implicit_surface.emplace_back(fv);
+				}
+				/*if (fv->phi == 0) {
+					implicit_surface.emplace_back(fv);
+				}*/
+				else if (fv->phi > 0) {
+					fuel.emplace_back(fv);
+					fv->update_temp();
+				}
+			}
+		}
+	}
+	condition_phi();
+	cout << "implicit: " << implicit_surface.size() << endl;
+	cout << "fuel: " << fuel.size() << endl;
 }
 
 void Fire::condition_phi() {
@@ -346,12 +344,17 @@ void Fire::condition_phi() {
         }
       }
 
-      // ensure |delta_phi| == 1 with min_set conditioned fvs
-      fv->phi = (fv->phi < condition_fv->phi) ? condition_fv->phi - 1 : condition_fv->phi + 1;
-
-	  /*if (condition_fv->set_num != 0) {
+	  /*if (condition_fv->set_num > 0) {
 		  cout << "nice" << endl;
 	  }*/
+
+      // ensure |delta_phi| == 1 with min_set conditioned fvs
+	  //fv->phi = (fv->phi < condition_fv->phi) ? condition_fv->phi - 1 : condition_fv->phi + 1;
+	  if (fv->phi < condition_fv->phi) {
+		  fv->phi = condition_fv->phi - 1;
+	  } else if (fv->phi > condition_fv->phi) {
+		  fv->phi = condition_fv->phi + 1;
+	  }
 
       fv->set_num = condition_fv->set_num + 1;
       fv->conditioned = true;
