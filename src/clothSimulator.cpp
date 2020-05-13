@@ -1,4 +1,3 @@
-#define _USE_MATH_DEFINES
 #include <cmath>
 #include <glad/glad.h>
 
@@ -6,7 +5,6 @@
 #include <nanogui/nanogui.h>
 
 #include "clothSimulator.h"
-#include "leak_fix.h"
 
 #include "camera.h"
 #include "cloth.h"
@@ -124,20 +122,26 @@ void ClothSimulator::load_shaders() {
       vert_shader = associated_vert_shader_path;
     }
     
-    GLShader nanogui_shader;
-    nanogui_shader.initFromFiles(shader_name, vert_shader,
+    std::shared_ptr<GLShader> nanogui_shader = make_shared<GLShader>();
+    nanogui_shader->initFromFiles(shader_name, vert_shader,
                                   m_project_root + "/shaders/" + shader_fname);
     
     // Special filenames are treated a bit differently
     ShaderTypeHint hint;
-    if (shader_name == "Wireframe") {
-      hint = ShaderTypeHint::WIREFRAME;
+    if (shader_name == "Temp") {
+      hint = ShaderTypeHint::TEMP;
       std::cout << "Type: Wireframe" << std::endl;
-    } else if (shader_name == "Normal") {
-      hint = ShaderTypeHint::NORMALS;
+    } else if (shader_name == "Phi") {
+      hint = ShaderTypeHint::PHI;
       std::cout << "Type: Normal" << std::endl;
+    } else if (shader_name == "Velocity") {
+        hint = ShaderTypeHint::VELOCITY;
+        std::cout << "Type: Normal" << std::endl;
+    } else if (shader_name == "ISurface") {
+        hint = ShaderTypeHint::ISURFACE;
+        std::cout << "Type: Normal" << std::endl;
     } else {
-      hint = ShaderTypeHint::PHONG;
+        hint = ShaderTypeHint::PHONG;
       std::cout << "Type: Custom" << std::endl;
     }
     
@@ -147,9 +151,9 @@ void ClothSimulator::load_shaders() {
     shaders_combobox_names.push_back(shader_name);
   }
   
-  // Assuming that it's there, use "Wireframe" by default
+  // Assuming that it's there, use "Temp" by default
   for (size_t i = 0; i < shaders_combobox_names.size(); ++i) {
-    if (shaders_combobox_names[i] == "Wireframe") {
+    if (shaders_combobox_names[i] == "Temp") {
       active_shader_idx = i;
       break;
     }
@@ -169,7 +173,7 @@ ClothSimulator::ClothSimulator(std::string project_root, Screen *screen)
 
 ClothSimulator::~ClothSimulator() {
   for (auto shader : shaders) {
-    shader.nanogui_shader.free();
+    shader.nanogui_shader->free();
   }
   glDeleteTextures(1, &m_gl_texture_1);
   glDeleteTextures(1, &m_gl_texture_2);
@@ -178,11 +182,16 @@ ClothSimulator::~ClothSimulator() {
   glDeleteTextures(1, &m_gl_cubemap_tex);
 
   if (cloth) delete cloth;
+  if (fire) delete fire;
   if (cp) delete cp;
   if (collision_objects) delete collision_objects;
 }
 
+void ClothSimulator::loadFire(Fire *fire) { this->fire = fire; }
+
 void ClothSimulator::loadCloth(Cloth *cloth) { this->cloth = cloth; }
+
+void ClothSimulator::loadFireParameters(FireParameters *fp) { this->fp = fp; }
 
 void ClothSimulator::loadClothParameters(ClothParameters *cp) { this->cp = cp; }
 
@@ -247,7 +256,11 @@ void ClothSimulator::drawContents() {
     vector<Vector3D> external_accelerations = {gravity};
 
     for (int i = 0; i < simulation_steps; i++) {
-      cloth->simulate(frames_per_sec, simulation_steps, cp, external_accelerations, collision_objects);
+		  fire->simulate(0.1, fp, external_accelerations);
+		  /*int condition_freq = 10;
+		  if (i % condition_freq == 0) {
+		    fire->condition_phi();
+		  }*/
     }
   }
 
@@ -255,7 +268,7 @@ void ClothSimulator::drawContents() {
 
   const UserShader& active_shader = shaders[active_shader_idx];
 
-  GLShader shader = active_shader.nanogui_shader;
+  GLShader &shader = *active_shader.nanogui_shader;
   shader.bind();
 
   // Prepare the camera projection matrix
@@ -272,9 +285,18 @@ void ClothSimulator::drawContents() {
   shader.setUniform("u_view_projection", viewProjection);
 
   switch (active_shader.type_hint) {
-  case WIREFRAME:
+  case TEMP:
     shader.setUniform("u_color", color, false);
-    drawWireframe(shader);
+    drawTemp(shader);
+    break;
+  case PHI:
+    drawPhi(shader);
+    break;
+  case VELOCITY:
+    drawVelocity(shader);
+    break;
+  case ISURFACE:
+    drawISurface(shader);
     break;
   case NORMALS:
     drawNormals(shader);
@@ -305,65 +327,92 @@ void ClothSimulator::drawContents() {
     break;
   }
 
-  for (CollisionObject *co : *collision_objects) {
+  // don't render sphere
+  /*for (CollisionObject *co : *collision_objects) {
     co->render(shader);
-  }
+  }*/
 }
 
-void ClothSimulator::drawWireframe(GLShader &shader) {
-  int num_structural_springs =
-      2 * cloth->num_width_points * cloth->num_height_points -
-      cloth->num_width_points - cloth->num_height_points;
-  int num_shear_springs =
-      2 * (cloth->num_width_points - 1) * (cloth->num_height_points - 1);
-  int num_bending_springs = num_structural_springs - cloth->num_width_points -
-                            cloth->num_height_points;
+void ClothSimulator::drawPhi(GLShader &shader) {
+	// Make fire render here for now because default renderer
+	vector<FireVoxel*>& fire_render = fire->map;
+	MatrixXf positions(4, fire_render.size());
+	MatrixXf phis(1, fire_render.size());
 
-  int num_springs = cp->enable_structural_constraints * num_structural_springs +
-                    cp->enable_shearing_constraints * num_shear_springs +
-                    cp->enable_bending_constraints * num_bending_springs;
+	for (int i = 0; i < fire_render.size(); i++) {
+		const auto &fv = *fire_render[i];
+		const auto &p = fv.position;
+		positions.col(i) << p.x, p.y, p.z, 1.0;
+		phis.col(i) << fv.phi;
+	}
 
-  MatrixXf positions(4, num_springs * 2);
-  MatrixXf normals(4, num_springs * 2);
+	shader.uploadAttrib("in_position", positions, false);
+	shader.uploadAttrib("in_phi", phis, false);
+	shader.drawArray(GL_POINTS, 0, fire_render.size());
+}
 
-  // Draw springs as lines
+void ClothSimulator::drawTemp(GLShader &shader) {
+  // Make fire render here for now because default renderer
+  vector<FireVoxel*> fire_render = fire->fuel;
+  //vector<FireVoxel*> fire_render = fire->implicit_surface;
+  MatrixXf positions(4, fire_render.size());
+  MatrixXf temps(1, fire_render.size());
 
-  int si = 0;
+  for (int i = 0; i < fire_render.size(); i++) {
+      FireVoxel fv = *fire_render[i];
+      Vector3D p = fv.position;
 
-  for (int i = 0; i < cloth->springs.size(); i++) {
-    Spring s = cloth->springs[i];
-
-    if ((s.spring_type == STRUCTURAL && !cp->enable_structural_constraints) ||
-        (s.spring_type == SHEARING && !cp->enable_shearing_constraints) ||
-        (s.spring_type == BENDING && !cp->enable_bending_constraints)) {
-      continue;
-    }
-
-    Vector3D pa = s.pm_a->position;
-    Vector3D pb = s.pm_b->position;
-
-    Vector3D na = s.pm_a->normal();
-    Vector3D nb = s.pm_b->normal();
-
-    positions.col(si) << pa.x, pa.y, pa.z, 1.0;
-    positions.col(si + 1) << pb.x, pb.y, pb.z, 1.0;
-
-    normals.col(si) << na.x, na.y, na.z, 0.0;
-    normals.col(si + 1) << nb.x, nb.y, nb.z, 0.0;
-
-    si += 2;
+      positions.col(i) << p.x, p.y, p.z, 1.0;
+      temps.col(i) << fv.temp;
   }
 
-  //shader.setUniform("u_color", nanogui::Color(1.0f, 1.0f, 1.0f, 1.0f), false);
   shader.uploadAttrib("in_position", positions, false);
-  // Commented out: the wireframe shader does not have this attribute
-  //shader.uploadAttrib("in_normal", normals);
+  shader.uploadAttrib("in_temp", temps, false);
+  shader.drawArray(GL_POINTS, 0, fire_render.size());
+}
 
-  shader.drawArray(GL_LINES, 0, num_springs * 2);
+void ClothSimulator::drawVelocity(GLShader& shader) {
+    // use uf
+    // color for speed and line dir for direction
+    vector<FireVoxel*> fire_render = fire->map;
+    MatrixXf positions(4, fire_render.size() * 2);
+    MatrixXf vel(1, fire_render.size() * 2);
 
-#ifdef LEAK_PATCH_ON
-  shader.freeAttrib("in_position");
-#endif
+    for (int i = 0; i < fire_render.size(); i++) {
+        FireVoxel fv = *fire_render[i];
+        Vector3D p = fv.position;
+
+        Vector3D v = fv.uf();
+        if (v.x != 0 || v.y != 0 || v.z != 0) {
+            v.normalize();
+        }
+
+        Vector3D endpoint = p + v * 0.025;
+
+        positions.col(i * 2) << p.x, p.y, p.z, 1.0;
+        positions.col(i * 2 + 1) << endpoint.x, endpoint.y, endpoint.z, 1.0;
+        vel.col(i * 2) << fv.uf().norm();
+        vel.col(i * 2 + 1) << fv.uf().norm();
+    }
+
+    shader.uploadAttrib("in_position", positions, false);
+    shader.uploadAttrib("in_vel", vel, false);
+    shader.drawArray(GL_LINES, 0, fire_render.size() * 2);
+}
+
+void ClothSimulator::drawISurface(GLShader& shader) {
+    vector<FireVoxel*> fire_render = fire->implicit_surface;
+    MatrixXf positions(4, fire_render.size());
+
+    for (int i = 0; i < fire_render.size(); i++) {
+        FireVoxel fv = *fire_render[i];
+        Vector3D p = fv.position;
+
+        positions.col(i) << p.x, p.y, p.z, 1.0;
+    }
+
+    shader.uploadAttrib("in_position", positions, false);
+    shader.drawArray(GL_POINTS, 0, fire_render.size());
 }
 
 void ClothSimulator::drawNormals(GLShader &shader) {
@@ -396,10 +445,6 @@ void ClothSimulator::drawNormals(GLShader &shader) {
   shader.uploadAttrib("in_normal", normals, false);
 
   shader.drawArray(GL_TRIANGLES, 0, num_tris * 3);
-#ifdef LEAK_PATCH_ON
-  shader.freeAttrib("in_position");
-  shader.freeAttrib("in_normal");
-#endif
 }
 
 void ClothSimulator::drawPhong(GLShader &shader) {
@@ -445,12 +490,6 @@ void ClothSimulator::drawPhong(GLShader &shader) {
   shader.uploadAttrib("in_tangent", tangents, false);
 
   shader.drawArray(GL_TRIANGLES, 0, num_tris * 3);
-#ifdef LEAK_PATCH_ON
-  shader.freeAttrib("in_position");
-  shader.freeAttrib("in_normal");
-  shader.freeAttrib("in_uv");
-  shader.freeAttrib("in_tangent");
-#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -469,7 +508,7 @@ Matrix4f ClothSimulator::getProjectionMatrix() {
   double cam_near = camera.near_clip();
   double cam_far = camera.far_clip();
 
-  double theta = camera.v_fov() * M_PI / 360;
+  double theta = camera.v_fov() * PI / 360;
   double range = cam_far - cam_near;
   double invtan = 1. / tanf(theta);
 
@@ -594,6 +633,7 @@ bool ClothSimulator::keyCallbackEvent(int key, int scancode, int action,
     case 'r':
     case 'R':
       cloth->reset();
+      fire->reset();
       break;
     case ' ':
       resetCamera();

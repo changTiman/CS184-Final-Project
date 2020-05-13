@@ -15,6 +15,7 @@
 #include "CGL/CGL.h"
 #include "collision/plane.h"
 #include "collision/sphere.h"
+#include "fire.h"
 #include "cloth.h"
 #include "clothSimulator.h"
 #include "json.hpp"
@@ -65,7 +66,7 @@ void createGLContexts() {
   glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
   // Create a GLFWwindow object
-  window = glfwCreateWindow(800, 800, "Cloth Simulator", nullptr, nullptr);
+  window = glfwCreateWindow(800, 800, "Fire Simulator", nullptr, nullptr);
   if (window == nullptr) {
     std::cout << "Failed to create GLFW window" << std::endl;
     glfwTerminate();
@@ -397,7 +398,9 @@ int main(int argc, char **argv) {
   bool found_project_root = find_project_root(search_paths, project_root);
   
   Cloth cloth;
+  Fire fire;
   ClothParameters cp;
+  FireParameters fp;
   vector<CollisionObject *> objects;
   
   int c;
@@ -473,10 +476,14 @@ int main(int argc, char **argv) {
   cloth.buildGrid();
   cloth.buildClothMesh();
 
+  fire.build_map();
+
   // Initialize the ClothSimulator object
   app = new ClothSimulator(project_root, screen);
   app->loadCloth(&cloth);
+  app->loadFire(&fire);
   app->loadClothParameters(&cp);
+  app->loadFireParameters(&fp);
   app->loadCollisionObjects(&objects);
   app->init();
 

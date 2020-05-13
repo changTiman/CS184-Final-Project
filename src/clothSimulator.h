@@ -5,12 +5,13 @@
 
 #include "camera.h"
 #include "cloth.h"
+#include "fire.h"
 #include "collision/collisionObject.h"
 
 using namespace nanogui;
 
 struct UserShader;
-enum ShaderTypeHint { WIREFRAME = 0, NORMALS = 1, PHONG = 2 };
+enum ShaderTypeHint { WIREFRAME = 0, NORMALS = 1, PHONG = 2, TEMP = 3, PHI = 4, VELOCITY = 5, ISURFACE = 6};
 
 class ClothSimulator {
 public:
@@ -20,7 +21,9 @@ public:
   void init();
 
   void loadCloth(Cloth *cloth);
+  void loadFire(Fire *fire);
   void loadClothParameters(ClothParameters *cp);
+  void loadFireParameters(FireParameters *fp);
   void loadCollisionObjects(vector<CollisionObject *> *objects);
   virtual bool isAlive();
   virtual void drawContents();
@@ -36,7 +39,11 @@ public:
 
 private:
   virtual void initGUI(Screen *screen);
-  void drawWireframe(GLShader &shader);
+  void drawTemp(GLShader &shader);
+  void drawPhi(GLShader &shader);
+  void drawVelocity(GLShader& shader);
+  void drawISurface(GLShader& shader);
+
   void drawNormals(GLShader &shader);
   void drawPhong(GLShader &shader);
   
@@ -55,14 +62,16 @@ private:
 
   // Default simulation values
 
-  int frames_per_sec = 90;
-  int simulation_steps = 30;
+  int frames_per_sec = 60;
+  int simulation_steps = 10;
 
   CGL::Vector3D gravity = CGL::Vector3D(0, -9.8, 0);
   nanogui::Color color = nanogui::Color(1.0f, 1.0f, 1.0f, 1.0f);
 
   Cloth *cloth;
+  Fire *fire;
   ClothParameters *cp;
+  FireParameters *fp;
   vector<CollisionObject *> *collision_objects;
 
   // OpenGL attributes
@@ -136,13 +145,13 @@ private:
 };
 
 struct UserShader {
-  UserShader(std::string display_name, GLShader nanogui_shader, ShaderTypeHint type_hint)
+  UserShader(std::string display_name, std::shared_ptr<GLShader> nanogui_shader, ShaderTypeHint type_hint)
   : display_name(display_name)
   , nanogui_shader(nanogui_shader)
   , type_hint(type_hint) {
   }
   
-  GLShader nanogui_shader;
+  std::shared_ptr<GLShader> nanogui_shader;
   std::string display_name;
   ShaderTypeHint type_hint;
   

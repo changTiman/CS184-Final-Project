@@ -4,6 +4,10 @@
 # Visual Studio
 Win32/*
 
+# CLion
+.idea/
+cmake-*/
+
 # Prerequisites
 *.d
 
